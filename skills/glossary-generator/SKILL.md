@@ -58,7 +58,7 @@ Grounding priority: javadoc/docstring/comment → OpenAPI/Swagger description �
 Every `definition_fa` is one of: native/untagged, `[TRANSLATED]`, or `[INFERRED]` — never untagged unless native.
 
 ## Step 5 — Detect collisions
-Same `term` (case-insensitive, ignore plurals) in more than one module → add a cross-reference + one-clause disambiguator to `do_not_confuse_with` in both, e.g. `transaction (see psp-agent-x.csv: single outbound PSP call, not full customer payment)`.
+Same `term` (case-insensitive, ignore plurals) in more than one module → add a cross-reference + one-clause disambiguator to `do_not_confuse_with` in both, e.g. `order (see orders-core.csv: confirmed purchase; not a money movement)`.
 
 ## Step 6 — Merge with existing glossary
 If the CSV already exists:

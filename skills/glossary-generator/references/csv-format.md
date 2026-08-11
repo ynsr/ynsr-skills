@@ -1,6 +1,6 @@
 # Glossary CSV Format (fixed — do not deviate)
 
-One file per module: `docs/glossary/<module-name>-glossary.csv` (e.g. `docs/glossary/projectx-glossary.csv`)
+One file per module: `docs/glossary/<module-name>-glossary.csv` (e.g. `docs/glossary/orders-glossary.csv`)
 
 ## Header (exact column order)
 ```
@@ -11,13 +11,13 @@ term,module,status,code_refs,definition_en,definition_fa,aliases_loose,do_not_co
 | Column | Meaning | Example |
 |---|---|---|
 | `term` | Canonical business-facing name, lowercase, spaced (not code-cased) | `settlement batch` |
-| `module` | Service/module this belongs to | `ppg-core` |
+| `module` | Service/module this belongs to | `orders-core` |
 | `status` | `active`, `deprecated` (still in code, marked deprecated), or `db-only-legacy` (in schema, no code reference) — see SKILL.md "Handling deprecated and DB-only fields" | `active` |
-| `code_refs` | Semicolon-separated list of exact code/schema locations | `SettlementBatchEntity;settlement_batches (table)` |
+| `code_refs` | Semicolon-separated list of exact code/schema locations | `Order;orders (table)` |
 | `definition_en` | One plain sentence. Untagged if `code-grounded`; prefixed `[INFERRED] ` if guessed with no grounding (see SKILL.md Step 4). | `A grouped set of confirmed transactions submitted to a PSP for payout in one settlement run.` |
 | `definition_fa` | Farsi definition. Untagged if taken verbatim from a native Farsi source in the repo; prefixed `[TRANSLATED] ` if machine-translated from a grounded `definition_en`; prefixed `[INFERRED] ` if guessed with no grounding at all. Never untagged unless it's a native source. | `[TRANSLATED] ...` |
 | `aliases_loose` | Semicolon-separated loose terms people actually use (EN and FA mixed, both directions) — leave blank at generation time unless found in code comments/logs; this column is mainly filled by human reviewers over time | `batch;settlement run` |
-| `do_not_confuse_with` | Semicolon-separated cross-module collisions detected in Step 5, with a one-clause disambiguator | `transaction (see psp-agent-x.csv: single outbound PSP call, not full customer payment)` |
+| `do_not_confuse_with` | Semicolon-separated cross-module collisions detected in Step 5, with a one-clause disambiguator | `order (see orders-core.csv: confirmed purchase; not a money movement)` |
 | `confidence` | `code-grounded`, `name-only`, or `human-confirmed` (person confirmed live during a downstream tool, e.g. `bug-issue-generator`) | `code-grounded` |
 | `needs_review` | `yes`/`no` — default `yes`; always `yes` for `[TRANSLATED]`/`[INFERRED]`. `human-confirmed` rows may be `no` — the one case a non-human-reviewer may set it. | `yes` |
 | `last_scanned` | ISO date this row was generated/updated by the scan | `2026-08-07` |
@@ -32,7 +32,7 @@ term,module,status,code_refs,definition_en,definition_fa,aliases_loose,do_not_co
 ## Example rows
 ```csv
 term,module,status,code_refs,definition_en,definition_fa,aliases_loose,do_not_confuse_with,confidence,needs_review,last_scanned
-settlement batch,ppg-core,active,SettlementBatchEntity;settlement_batches (table),A grouped set of confirmed transactions submitted to a PSP for payout in one settlement run.,[TRANSLATED] a Farsi rendering of the English sentence,,,code-grounded,yes,2026-08-07
-psp call attempt,psp-agent-x,active,PspCallLog;psp_call_log (table),[INFERRED] Likely represents a single outbound call attempt to a PSP for one leg of a transaction; based on class name and its place in the retry-handling package.,[INFERRED] a Farsi guess mirroring the English guess,,transaction (see ppg-core.csv: full customer payment; not one PSP call),name-only,yes,2026-08-07
-legacy retry counter,ppg-core,db-only-legacy,retry_count_v1 (column; not in current entity code),TBD,,,,name-only,yes,2026-08-07
+order,orders-core,active,Order;orders (table),A confirmed customer purchase queued for fulfillment.,[TRANSLATED] a Farsi rendering of the English sentence,,,code-grounded,yes,2026-08-07
+invoice ledger entry,ledger,active,InvoiceLedgerEntry;ledger_entries (table),[INFERRED] Likely records a single financial entry against an order for accounting; based on class name and its place in the ledger package.,[INFERRED] a Farsi guess mirroring the English guess,,order (see orders-core.csv: confirmed purchase; not a money movement),name-only,yes,2026-08-07
+legacy archive flag,orders-core,db-only-legacy,archived_v1 (column; not in current entity code),TBD,,,,name-only,yes,2026-08-07
 ```

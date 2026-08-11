@@ -35,8 +35,8 @@ For each term that matters (Title, Steps to Reproduce, Environment — not chatt
 - **Ambiguous, or the match is missing something needed** (blank `definition_fa`, thin aliases) → stop, ask. Batch every such question into one numbered list with candidate options + "something else," don't ask one at a time:
   ```
   1. "the retry thing keeps failing" — which do you mean?
-     a) settlement batch retry (projectx: SettlementBatchEntity)
-     b) psp call retry (psp-agent-x: PspCallLog)
+     a) settlement batch retry (SettlementBatch)
+     b) psp call retry (PspCall attempt)
      c) something else — tell me what
   2. No Farsi definition for "callback timeout" — what's the team's term?
   ```
