@@ -15,19 +15,18 @@ Requires `jdatetime` for at least one python:
 pip install jdatetime
 ```
 
-The script lives in this folder (`skills/jalali-date-convert/jalali-date-convert.sh`) inside the private repo `ynsr/cli-agents-config`, so it must come from your own checkout — a raw GitHub URL won't work for a private repo.
-
-From anywhere inside your checkout, install it (the path is resolved relative to your current directory, no hardcoded path needed):
+Install from the raw GitHub source (functions appended to `~/.bash_aliases`):
 
 ```bash
-echo "source $PWD/skills/jalali-date-convert/jalali-date-convert.sh" >> ~/.bash_aliases
+_JCV=https://raw.githubusercontent.com/ynsr/ynsr-skills/main/skills/jalali-date-convert/jalali-date-convert.sh
+curl -fsSL "$_JCV" >> ~/.bash_aliases
 source ~/.bash_aliases
 ```
 
-Or source it on demand without installing:
+Or source it on demand, without persisting:
 
 ```bash
-source skills/jalali-date-convert/jalali-date-convert.sh   # run from the repo root
+source <(curl -fsSL "$_JCV")
 ```
 
 The script resolves at call time which python can `import jdatetime` (python3.12, python3.11, then python3), so pip/python version mismatches don't break it.
