@@ -1,6 +1,8 @@
 ---
 name: maven-project
 description: Use for ANY Java project using Maven (pom.xml, mvn, mvnw) — builds, tests, troubleshooting. Not for Gradle or plain-Java projects.
+disable-model-invocation: true
+user-invocable: true
 ---
 
 # Maven Project

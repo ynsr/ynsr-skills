@@ -1,6 +1,8 @@
 ---
 name: diagnostics-first-debugging
 description: Use this skill for ANY bug, error, exception, failing test, crash, unexpected behavior, or "this isn't working" report in source code (Java/Spring Boot, React/Angular, Python, JS/TS, Bash, config, CI, infra-as-code, or any other language). Trigger even if the user asks you to "just fix it," "quickly patch," or sounds confident about the cause themselves. Trigger on regressions, intermittent/flaky failures, production incidents, build failures, and "works on my machine" issues. Do NOT trigger for pure feature requests, refactors, or greenfield code with no bug involved. If you catch yourself about to edit code in response to an error message before reading the actual failure context, that is the signal this skill should have fired.
+disable-model-invocation: true
+user-invocable: true
 ---
 
 # Diagnostics-First Debugging
