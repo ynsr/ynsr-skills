@@ -1,6 +1,6 @@
 ---
 name: gitlab-cli
-description: Use when the user wants to list GitLab projects, search issues, or view, comment on, update, assign, close, reopen, or delete GitLab issues via the `gitlab-cli` command. Trigger on mentions of GitLab, projects, issues, merge requests, IIDs, or GitLab search.
+description: Gitlab issue/task CLI tool
 ---
 
 # GitLab CLI

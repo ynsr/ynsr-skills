@@ -1,6 +1,6 @@
 ---
 name: jira-cli
-description: Use when the user wants to read, search, create, update, comment on, transition, link, or attach files to Jira issues via the `jira-cli` command. Trigger on mentions of Jira, issues, tickets, JQL, project keys (e.g. BANKING-123), sprints, or status changes.
+description: Jira issue/task CLI tool
 ---
 
 # Jira CLI

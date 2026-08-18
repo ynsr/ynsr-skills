@@ -1,6 +1,6 @@
 ---
 name: jalali-date-convert
-description: Convert dates between Jalali/Shamsi/Persian calendar and Gregorian calendar. Trigger on any mention of Jalali, Shamsi, Persian date, Iranian calendar, تاریخ شمسی, g2j, j2g, "convert date", "today's Jalali date", "امروز چه تاریخیه", or when timestamps in logs/reports/DB need to be shown in or converted from the Persian calendar. Use whenever the user references a Shamsi date (e.g. 1403/06/15) or asks to convert to/from Gregorian.
+description: Shamsi/Gregorian date conversion
 ---
 
 # Jalali Date Convert

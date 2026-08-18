@@ -1,6 +1,6 @@
 ---
 name: mattermost-cli
-description: Use when the user wants to read, send, search, or manage Mattermost messages, threads, channels, teams, users, reactions, or files via the `mm` CLI. Trigger on mentions of Mattermost, channels (e.g. ~town-square), DMs, posts, threads, mentions, or Mattermost notifications.
+description: Mattermost messaging CLI tool
 ---
 
 # Mattermost CLI (`mm`)
