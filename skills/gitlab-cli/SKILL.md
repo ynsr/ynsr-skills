@@ -1,6 +1,6 @@
 ---
 name: gitlab-cli
-description: Gitlab issue/task CLI tool
+description: Gitlab issue/task/repo CLI tool
 ---
 
 # GitLab CLI
