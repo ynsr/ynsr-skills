@@ -27,6 +27,7 @@ FreeBuff is a free AI coding assistant (freebuff.com). The agent ("Buffy") chats
    - Relevant files / areas of the codebase
    - Constraints and environment notes (commands to run, ports, credentials *by reference only*)
    - Anything the assistant must NOT do
+   - Reference to related skills by absolute pathn the handoff file. If not available, include the skill name and skill body in the handoff as a fallback.
 4. **Launch**: `cd <project-dir> && freebuff` (or `freebuff --cwd <project-dir>`). The human drives the session; the brief is the input. Use `freebuff --continue <conversation-id>` for follow-ups on the same task.
 5. **Verify when done**: when the human reports back, confirm the outcome against the brief (files changed, tests pass) rather than trusting the report.
 
@@ -37,17 +38,5 @@ FreeBuff is a free AI coding assistant (freebuff.com). The agent ("Buffy") chats
 - Launching from the wrong cwd — FreeBuff works inside the project dir you give it.
 - Putting secrets or machine-specific values in the brief.
 - Delegating something the orchestrator can do faster itself (FreeBuff is a human-in-the-loop session, not a subprocess).
-
-## Hermes as orchestrator
-
-Hermes' `delegation` toolset provides `delegate_task`, which spawns a **child Hermes agent** (isolated context, inherited toolsets) — it cannot invoke FreeBuff directly, and FreeBuff has no API to call anyway. To hand a task to FreeBuff from Hermes:
-
-1. `delegate_task` a subagent whose job is to:
-   - Write the task brief to the project dir (e.g. `freebuff-handoff.md`).
-   - Launch the TUI for the human: `tmux new-session -d -s freebuff 'cd <project-dir> && freebuff'` (or tell the user to run `freebuff --cwd <project-dir>` in a terminal).
-   - Report the brief path + how to attach (`tmux attach -t freebuff`).
-2. The human takes over the tmux session / terminal and drives FreeBuff with the brief.
-3. On follow-up, the subagent (or the user) runs `freebuff --continue <conversation-id>` in the same dir.
-4. Verify the result against the brief when the human reports completion.
 
 Keep the brief machine-agnostic and secret-free — the same rules as committed content.
