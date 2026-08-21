@@ -27,7 +27,7 @@ FreeBuff is a free AI coding assistant (freebuff.com). The agent ("Buffy") chats
    - Relevant files / areas of the codebase
    - Constraints and environment notes (commands to run, ports, credentials *by reference only*)
    - Anything the assistant must NOT do
-   - Reference to related skills by absolute pathn the handoff file. If not available, include the skill name and skill body in the handoff as a fallback.
+   - Reference to related skills by absolute path in the handoff file. If not available, include the skill name and skill body in the handoff as a fallback.
 4. **Launch**: `cd <project-dir> && freebuff` (or `freebuff --cwd <project-dir>`). The human drives the session; the brief is the input. Use `freebuff --continue <conversation-id>` for follow-ups on the same task.
 5. **Verify when done**: when the human reports back, confirm the outcome against the brief (files changed, tests pass) rather than trusting the report.
 
