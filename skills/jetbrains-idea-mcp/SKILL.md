@@ -5,7 +5,7 @@ description: "Use when connecting to the JetBrains IDEA MCP server (SSE endpoint
 
 # JetBrains IDEA MCP Server
 
-The IntelliJ IDEA MCP Server (bundled since IDEA 2025.2) exposes the running IDE's capabilities to external MCP clients — semantic code search, PSI-aware reading, compilation, debugger control, run configurations, database queries, and VCS status.
+The IntelliJ IDEA MCP Server exposes the running IDE's capabilities to external MCP clients — semantic code search, PSI-aware reading, compilation, debugger control, run configurations, database queries, and VCS status.
 
 ## Connection
 
