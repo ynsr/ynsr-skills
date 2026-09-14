@@ -93,7 +93,8 @@ without `--yes` (exit 2). The harness should treat this as required:
 - **Schema discovery**: `solr-cli schema <collection>` fetches the LIVE schema
   from the server (`/solr/<coll>/admin/file?file=managed-schema`) — always the
   deployed truth, never a local file. Returns only concrete `<field>` elements
-  (no dynamicField/fieldType/copyField), as JSON (or `-F xml`). Find a field
+  (no dynamicField/fieldType/copyField). Default output is CSV with a header
+  row (`-F json` for jq, `-F xml` for raw `<field …/>` lines). Find a field
   name before writing a query: `solr-cli schema orders --grep track` or
   `/regex/`. Every subcommand's `--help` also carries real Projectx examples.
 - Deep pagination: `--set-x` takes `KEY=JSON` (value must be valid JSON, so
