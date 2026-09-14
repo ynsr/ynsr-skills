@@ -110,10 +110,12 @@ Typically the Go tier. Default to a **user-scoped service** (`~/.config/systemd/
 **Python conventions (both tiers):**
 - **Proxy env**: normalize `socks://` → `socks5://` in ALL_PROXY/HTTP(S)_PROXY before building an httpx client — httpx raises `ValueError: Unknown scheme` on bare `socks://`, curl treats it as SOCKS5. (See `templates/python-project/src/mycli/client.py`.)
 - **Help**: Typer + Rich — panels, aligned columns, examples per command. Docstring's first paragraph is the one-liner; real example commands under `Example:`.
-- **Output format**: list/table output defaults to CSV with a header row; `--json` opts into JSON. stdout carries output only — logs to stderr.
 - **Profiles**: if the tool can reach multiple sources/orgs, support named profiles (create/list/use/remove) + a `--profile` flag on every command; no flag = stored default profile. Secrets via env vars or 0600 local files — never flags (shell history), code, or logs.
-- **Env vars**: stable settings (endpoint, auth token, default-profile override) read env vars so users don't repeat flags. Precedence: CLI flag > env var > profile > built-in default.
 - **Setup wizard**: `tool init` walks first-run config (endpoint → auth → default profile), saves it, and verifies with one live call.
+
+**Output format**: list/table output defaults to CSV with a header row; `--json` opts into JSON. stdout carries output only — logs to stderr.
+
+**Env vars**: stable settings (endpoint, auth token, default-profile override) read env vars so users don't repeat flags. Precedence: CLI flag > env var > profile > built-in default.
 
 **Non-interactive by default.** Nothing blocks on stdin unless the tool is explicitly interactive. Confirmation prompts only guard destructive actions; `--yes` bypasses them.
 
