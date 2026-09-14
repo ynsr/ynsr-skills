@@ -31,6 +31,7 @@ session — flags and defaults live there, not here. Full config reference:
 | Edit fields | `solr-cli update <collection> <id> --set 'field=value'` |
 | Delete by query | `solr-cli delete-by-query <collection> '<query>' --yes` |
 | List collections | `solr-cli collections` |
+| Schema fields | `solr-cli schema <collection> [--grep substr|/regex/]` |
 | Arbitrary call | `solr-cli raw -X <method> <path> [-d '<json>'] [--param k=v]` |
 
 ## Profile & Auth
@@ -89,6 +90,12 @@ without `--yes` (exit 2). The harness should treat this as required:
 - Query strings are Solr/Lucene syntax; values with spaces need quotes:
   `solr-cli select orders -q 'label:"PURCHASE AND REFUND"'` is a phrase match
   on one field value, whereas `label:PURCHASE AND state:FINISHED` is boolean.
+- **Schema discovery**: `solr-cli schema <collection>` fetches the LIVE schema
+  from the server (`/solr/<coll>/admin/file?file=managed-schema`) — always the
+  deployed truth, never a local file. Returns only concrete `<field>` elements
+  (no dynamicField/fieldType/copyField), as JSON (or `-F xml`). Find a field
+  name before writing a query: `solr-cli schema orders --grep track` or
+  `/regex/`. Every subcommand's `--help` also carries real Projectx examples.
 - Deep pagination: `--set-x` takes `KEY=JSON` (value must be valid JSON, so
   strings need inner quotes): `--set-x 'cursorMark="*"'` + sort by uniqueKey;
   repeat the flag for multiple params (`--set-x 'min_match="75%"'`).
