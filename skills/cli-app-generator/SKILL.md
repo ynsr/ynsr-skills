@@ -107,7 +107,7 @@ Typically the Go tier. Default to a **user-scoped service** (`~/.config/systemd/
 
 **Extensibility via composition.** When a tool will plausibly grow new targets (sites, data sources, backends), use a registry/strategy pattern from the start: one small module/function per target behind a common interface, dispatched via a lookup table. Document the extension point in code so adding one later is localized, not a refactor.
 
-**Testing scales with tier.** Trivial bash: none needed. Reused bash: consider `bats`. Python (either tier): pytest covering non-trivial logic. Go: `go test`, table-driven where it fits. Full projects target **≥75% coverage on core logic** (`pytest --cov` / `go test -cover`), excluding thin CLI wiring/`main()` — skip the target where it'd force excessive mocking that makes tests worse than none; fast real e2e tests beat inflated unit coverage. Self-check once with the coverage tool; treat as a target, not a blocking gate.
+**Testing scales with tier.** Trivial bash: none needed. Reused bash: consider `bats` or inline e2e (see `references/e2e-bash-testing.md` for a full self-contained test pattern with temp repos, assert helpers, and git fixture setup). Python (either tier): pytest covering non-trivial logic. Go: `go test`, table-driven where it fits. Full projects target **≥75% coverage on core logic** (`pytest --cov` / `go test -cover`), excluding thin CLI wiring/`main()` — skip the target where it'd force excessive mocking that makes tests worse than none; fast real e2e tests beat inflated unit coverage. Self-check once with the coverage tool; treat as a target, not a blocking gate.
 
 ## Step 4: Where it lives
 
