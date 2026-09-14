@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import csv
 import json
-import re
+import os
 import sys
 from typing import Optional
 
@@ -15,7 +15,7 @@ import typer
 
 from . import ops
 from .client import Client, NetworkError, SolrHTTPError
-from .config import Profile, ProfileError, config_dir, get_default, list_profiles, resolve_profile, save_profile, set_default
+from .config import Profile, ProfileError, get_default, list_profiles, load_profile, resolve_profile, save_profile, set_default
 
 __version__ = "0.1.0"
 
@@ -89,25 +89,35 @@ def _interactive_pick(label: str, options: dict[str, str]) -> str:
 
 @app.command("init")
 def init(
-    url: str = typer.Option(..., "--url", prompt="Source base URL"),
-    token: str = typer.Option(None, "--token", help="API token (prompted if omitted; prefer MYCLI_TOKEN env)."),
-    name: str = typer.Option("default", "--name", help="Profile name to save."),
+    name: str = typer.Argument("default", help="Profile name — new, or an existing one to update (prompts prefill from it)."),
+    url: Optional[str] = typer.Option(None, "--url", help="Source base URL (prompted if omitted)."),
+    token: Optional[str] = typer.Option(None, "--token", help="API token (prompted if omitted; prefer MYCLI_TOKEN env)."),
 ) -> None:
-    """Setup wizard: configure endpoint + auth, save a profile, verify with one live call."""
+    """Setup wizard: create or update a profile, mark it default, verify with one live call.
+
+    Example:
+      mycli init                     # profile 'default', prompted for URL + token
+      mycli init prod --url https://prod.example
+      mycli init default             # re-run against an existing profile to update it
+    """
     import getpass
 
-    tok = token or os.environ.get("MYCLI_TOKEN") or getpass.getpass("API token: ")
-    save_profile(Profile(name=name, url=url, token=tok))
+    existing = load_profile(name) if name in list_profiles() else None
+    url_val = url or typer.prompt("Source base URL", default=existing.url if existing else None)
+    tok = (token
+           or os.environ.get("MYCLI_TOKEN")
+           or getpass.getpass("API token (enter to keep existing): ")
+           or (existing.token if existing else None))
+    prof = existing or Profile(name=name, url=url_val, token=tok)
+    prof.url, prof.token = url_val, tok
+    save_profile(prof)
     set_default(name)
     try:
         with Client(resolve_profile(None)) as client:
             ops.health_check(client)   # one cheap authenticated call
-        print(f"OK: profile '{name}' saved as default and verified.")
+        print(f"OK: profile '{name}' {'updated' if existing else 'created'} as default and verified.")
     except (NetworkError, SolrHTTPError, ProfileError) as exc:
         _fail(f"profile saved but verification failed: {exc}", EXIT_NETWORK)
-
-
-import os  # noqa: E402  (kept at bottom of imports for clarity in template)
 
 
 # -- example data command: CSV default, --json opt-in -------------------------

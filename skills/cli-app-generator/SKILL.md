@@ -114,9 +114,10 @@ Typically the Go tier. Default to a **user-scoped service** (`~/.config/systemd/
 - **Profiles**: if the tool can reach multiple sources/orgs, support named profiles (create/list/use/remove) + a `--profile` flag on every command; no flag = stored default profile. Secrets via env vars or 0600 local files — never flags (shell history), code, or logs.
 - **Env vars**: stable settings (endpoint, auth token, default-profile override) read env vars so users don't repeat flags. Precedence: CLI flag > env var > profile > built-in default.
 - **Setup wizard**: `tool init` walks first-run config (endpoint → auth → default profile), saves it, and verifies with one live call.
-- **Interactive selection**: when a required choice (profile, resource id) is missing and stdin is a TTY, list options and prompt; non-TTY/`--yes` skips prompts and fails with an actionable message.
 
 **Non-interactive by default.** Nothing blocks on stdin unless the tool is explicitly interactive. Confirmation prompts only guard destructive actions; `--yes` bypasses them.
+
+**Interactive selection**: when a required choice (profile, resource id) is missing and stdin is a TTY, list options and prompt; non-TTY/`--yes` skips prompts and fails with an actionable message.
 
 **Bash baseline** (when bash is chosen): `set -euo pipefail`, a `trap` for cleanup, shellcheck-clean. Reaching for associative-array-of-arrays or real JSON parsing is a signal to switch to Python.
 
