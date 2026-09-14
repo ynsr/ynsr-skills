@@ -52,6 +52,12 @@ tool-name/
 ```
 Install via `pipx install .` (or `--editable .` while iterating) — note this in the README.
 
+**Ready-made templates** (copy `templates/<dir>/` into the target project, rename `mycli`/`<tool>`, fill in domain ops in `ops.py`):
+- `templates/python-project/` — full multi-file layout (solr-cli extract): profile store + httpx client with proxy normalization/retries + Typer CLI (CSV default, `--json`, wizard, interactive pick) + mock-transport pytest suite (8 tests, offline). Verified: `uv sync && uv run pytest` → 8 passed.
+- `templates/python-single-file/tool.py` — one-file layout (mbapi extract): constants → 0600 profile store → requests.Session with retries → domain functions → Typer commands → `main()`. Verified: runs under `uv run --with requests`.
+
+Bash and Go templates: not yet provided — follow the tiers above.
+
 **Go project:**
 ```
 tool-name/
@@ -100,6 +106,15 @@ Typically the Go tier. Default to a **user-scoped service** (`~/.config/systemd/
 **Network operations.** Every network call gets `--timeout`, `--retries`, `--retry-delay` (exponential backoff between retries), exposed as flags with sane defaults rather than hardcoded.
 
 **Secrets and config.** Never hardcode credentials or endpoints. Read from env vars or a config file, document which ones in `--help`, and fail immediately with a clear message if something required is missing.
+
+**Python conventions (both tiers):**
+- **Proxy env**: normalize `socks://` → `socks5://` in ALL_PROXY/HTTP(S)_PROXY before building an httpx client — httpx raises `ValueError: Unknown scheme` on bare `socks://`, curl treats it as SOCKS5. (See `templates/python-project/src/mycli/client.py`.)
+- **Help**: Typer + Rich — panels, aligned columns, examples per command. Docstring's first paragraph is the one-liner; real example commands under `Example:`.
+- **Output format**: list/table output defaults to CSV with a header row; `--json` opts into JSON. stdout carries output only — logs to stderr.
+- **Profiles**: if the tool can reach multiple sources/orgs, support named profiles (create/list/use/remove) + a `--profile` flag on every command; no flag = stored default profile. Secrets via env vars or 0600 local files — never flags (shell history), code, or logs.
+- **Env vars**: stable settings (endpoint, auth token, default-profile override) read env vars so users don't repeat flags. Precedence: CLI flag > env var > profile > built-in default.
+- **Setup wizard**: `tool init` walks first-run config (endpoint → auth → default profile), saves it, and verifies with one live call.
+- **Interactive selection**: when a required choice (profile, resource id) is missing and stdin is a TTY, list options and prompt; non-TTY/`--yes` skips prompts and fails with an actionable message.
 
 **Non-interactive by default.** Nothing blocks on stdin unless the tool is explicitly interactive. Confirmation prompts only guard destructive actions; `--yes` bypasses them.
 
