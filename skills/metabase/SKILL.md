@@ -36,8 +36,7 @@ mbapi api POST /api/dataset --yes --data '{"database":1,"type":"native","native"
 
 `--json` = single-line JSON on stdout; `--url` overrides target (default `$MB_URL`).
 
-## Notes
-
 - clio.jibit.cloud runs Metabase v0.52; official `mb` CLI unusable there (needs API key or v63+).
 - Native SQL via `POST /api/dataset` → response `data.rows` / `data.cols`.
+- **Int64 precision: wrap big IDs server-side with `toString()`** (`SELECT toString(id) ...`). Metabase middleware coerces large Int64 to float in JSON (`js-int-to-string`), so raw `id` arrives as `1.015...e+18` and is unjoinable. Affects ClickHouse Int64 keys (e.g. `purchase_dist.id`); also applies to Nullable(UUID) like `terminal_id` when exact text is needed.
 - Tests: `python3 -m pytest -q` in the repo; live e2e `MBAPI_E2E=1 pytest -k e2e`.
