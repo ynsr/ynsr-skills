@@ -52,9 +52,8 @@ tool-name/
 ```
 Install via `pipx install .` (or `--editable .` while iterating) — note this in the README.
 
-**Ready-made templates** (copy `templates/<dir>/` into the target project, rename `mycli`/`<tool>`, fill in domain ops in `ops.py`):
-- `templates/python-project/` — full multi-file layout (solr-cli extract): profile store + httpx client with proxy normalization/retries + Typer CLI (CSV default, `--json`, wizard, interactive pick) + mock-transport pytest suite (8 tests, offline). Verified: `uv sync && uv run pytest` → 8 passed.
-- `templates/python-single-file/tool.py` — one-file layout (mbapi extract): constants → 0600 profile store → requests.Session with retries → domain functions → Typer commands → `main()`. Verified: runs under `uv run --with requests`.
+- `templates/python-project/` — full multi-file layout (solr-cli extract): profile store + httpx client with proxy normalization/retries + Typer CLI (`add_completion=False`; CSV default, `--json`, wizard with completion-install offer, interactive pick) + `completions show|install` (eval-line scripts, idempotent rc edit) + mock-transport pytest suite (16 tests incl. completion idempotency, offline). Verified: `uv sync && .venv/bin/python -m pytest` → all pass.
+- `templates/python-single-file/tool.py` — one-file layout (mbapi extract): constants → 0600 profile store → requests.Session with retries → domain functions → Typer commands (`add_completion=False`, `completions show|install` inline) → `main()`. Verified: runs under `uv run --with requests,typer,click`.
 
 Bash and Go templates: not yet provided — follow the tiers above.
 
@@ -107,11 +106,16 @@ Typically the Go tier. Default to a **user-scoped service** (`~/.config/systemd/
 
 **Secrets and config.** Never hardcode credentials or endpoints. Read from env vars or a config file, document which ones in `--help`, and fail immediately with a clear message if something required is missing.
 
-**Python conventions (both tiers):**
 - **Proxy env**: normalize `socks://` → `socks5://` in ALL_PROXY/HTTP(S)_PROXY before building an httpx client — httpx raises `ValueError: Unknown scheme` on bare `socks://`, curl treats it as SOCKS5. (See `templates/python-project/src/mycli/client.py`.)
 - **Help**: Typer + Rich — panels, aligned columns, examples per command. Docstring's first paragraph is the one-liner; real example commands under `Example:`.
 - **Profiles**: if the tool can reach multiple sources/orgs, support named profiles (create/list/use/remove) + a `--profile` flag on every command; no flag = stored default profile. Secrets via env vars or 0600 local files — never flags (shell history), code, or logs.
 - **Setup wizard**: `tool init` walks first-run config (endpoint → auth → default profile), saves it, and verifies with one live call.
+- **Shell completion** (every Python CLI — both templates ship it; see `templates/python-project/src/mycli/completions.py`):
+  - Construct the app with `add_completion=False` (disables Typer's competing `--install-completion`/`--show-completion` flags) and ship ONE system: a `completions` group with `show <bash|zsh|fish>` (prints the init script for `eval "$(tool completions show bash)"` in `~/.bashrc` / `~/.zshrc`, `| source` for fish) and `install [shell] [--rcfile --yes]` (idempotent marker-block rc edit: atomic tmp+rename write, `.bak` backup, stale-block replace not duplicate; zsh block also ensures `compinit`).
+  - Do NOT hand-code completion order — Click resolves the cursor position: subcommand names and `-`/`--` flags complete automatically. The only custom code is one `autocompletion=` callback per *dynamic value* (profile/resource names, like `git branch` cycling branches): filter on the `incomplete` prefix, read local state only (never network), never raise (return `[]` on any failure so Tab never breaks). Use `completions.complete_profile_names(list_profiles)` / `_complete_profiles` in the templates.
+  - `install` with no shell arg auto-detects from `$SHELL` (`detect_shell()`; None → usage error telling the user to pass the shell explicitly); `--shell` beats positional for agent/non-interactive use; `--rcfile` overrides per-shell default (`~/.bashrc`, `~/.zshrc`, `~/.config/fish/config.fish`) for tests; `--yes` bypasses the confirm prompt. Confirm before editing the rc file on a TTY (rc edit is destructive per the dry-run rule); print `source <rc>` / restart hint to stderr after a change, `already installed` on no-op.
+  - `init` wizard offers completion install at the end (confirm default No; `--no-completion` skips non-interactively). Tradeoff to document in README: `eval $(...)` spawns Python on every new shell (~200–400ms for Typer apps) but never goes stale — the right default for our tier.
+  - Tests (project tier, `tests/unit/test_completions.py`): `show` output non-empty per shell + unknown shell exits 2; install preserves existing rc content, creates `.bak`, second run is a byte-identical no-op; Click-level check that subcommands/flags resolve; value callback filters prefixes and returns `[]` on missing config.
 
 **Output format**: list/table output defaults to CSV with a header row; `--json` opts into JSON. stdout carries output only — logs to stderr.
 

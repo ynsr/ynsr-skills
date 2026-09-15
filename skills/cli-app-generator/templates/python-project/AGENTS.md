@@ -17,7 +17,7 @@ All tests pass offline — HTTP is mocked with httpx.MockTransport. Never write 
 2. `config.py` — profile store: `~/.config/mycli/profiles/*.json` (0600). Resolution order: env vars > `--profile` flag > default profile. Raises `ProfileError` with actionable messages.
 3. `client.py` — httpx.Client wrapper: injects Bearer auth, normalizes `socks://` proxy env to `socks5://` before client build, retry with exponential backoff on 5xx/429/timeouts/connect errors, request+response logging to stderr when verbose.
 4. `ops.py` — business operations shared by CLI and tests: request builders, response parsing, error mapping.
-5. `cli.py` subcommand wiring: `init` (setup wizard), `list`, `profile` (create/list/use/remove).
+5. `completions.py` + `cli.py` completions group — shell scripts via Click (`show`), idempotent rc install (`install`), `autocompletion=` value callbacks (profiles). No hand-coded ordering.
 
 ## Conventions
 

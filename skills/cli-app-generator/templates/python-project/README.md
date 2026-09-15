@@ -18,7 +18,22 @@ mycli list widgets                                # CSV with headers (default)
 mycli list widgets --json | jq '.[0]'             # JSON instead
 mycli profile create prod --url https://prod.example --default
 mycli list widgets -p prod                        # switch org via --profile
+mycli completions install                          # Tab completion: detects shell, edits rc idempotently
 ```
+
+## Shell completion
+
+```bash
+eval "$(mycli completions show bash)"   # ~/.bashrc
+eval "$(mycli completions show zsh)"    # ~/.zshrc (compinit handled by install)
+mycli completions show fish | source    # fish config
+```
+`mycli completions install [bash|zsh|fish]` writes the eval line into your rc
+file (`--rcfile` to override, `--yes` to skip confirmation); re-running is a
+no-op. Subcommands and `--flags` complete automatically; profile/resource
+values complete from local state (Tab cycles them like `git branch`).
+Tradeoff: the eval line spawns Python on each new shell (~200–400ms) but never
+goes stale when commands change.
 
 ## Configuration
 

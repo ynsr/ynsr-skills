@@ -13,6 +13,7 @@ from typing import Optional
 
 import typer
 
+from . import completions as _completions
 from . import ops
 from .client import Client, NetworkError, SolrHTTPError
 from .config import Profile, ProfileError, get_default, list_profiles, load_profile, resolve_profile, save_profile, set_default
@@ -21,10 +22,13 @@ __version__ = "0.1.0"
 
 EXIT_OK, EXIT_GENERAL, EXIT_USAGE, EXIT_NETWORK = 0, 1, 2, 3
 
+_complete_profiles = _completions.complete_profile_names(list_profiles)
+
 app = typer.Typer(
     name="mycli",
     help="One-line tool description.",
     no_args_is_help=True,
+    add_completion=False,  # single completion system: `completions show|install` (see completions.py)
     context_settings={"help_option_names": ["-h", "--help"]},
     pretty_exceptions_enable=False,
 )
@@ -92,6 +96,7 @@ def init(
     name: str = typer.Argument("default", help="Profile name — new, or an existing one to update (prompts prefill from it)."),
     url: Optional[str] = typer.Option(None, "--url", help="Source base URL (prompted if omitted)."),
     token: Optional[str] = typer.Option(None, "--token", help="API token (prompted if omitted; prefer MYCLI_TOKEN env)."),
+    no_completion: bool = typer.Option(False, "--no-completion", help="Skip the shell-completion install prompt at the end."),
 ) -> None:
     """Setup wizard: create or update a profile, mark it default, verify with one live call.
 
@@ -118,6 +123,12 @@ def init(
         print(f"OK: profile '{name}' {'updated' if existing else 'created'} as default and verified.")
     except (NetworkError, SolrHTTPError, ProfileError) as exc:
         _fail(f"profile saved but verification failed: {exc}", EXIT_NETWORK)
+    if not no_completion and sys.stdin.isatty():
+        shell = _completions.detect_shell()
+        if shell and typer.confirm(f"Install shell completion for {shell}?", default=False):
+            rc, changed = _completions.install_completion("mycli", shell, None)
+            if changed:
+                _completions.print_install_hint("mycli", shell, rc)
 
 
 # -- example data command: CSV default, --json opt-in -------------------------
@@ -127,7 +138,7 @@ def init(
 def list_cmd(
     resource: str = typer.Argument(..., help="Resource to list."),
     json_output: bool = typer.Option(False, "--json", help="JSON instead of CSV."),
-    profile_name: Optional[str] = typer.Option(None, "--profile", "-p", envvar="MYCLI_PROFILE", help="Profile to use (default: stored default)."),
+    profile_name: Optional[str] = typer.Option(None, "--profile", "-p", envvar="MYCLI_PROFILE", autocompletion=_complete_profiles, help="Profile to use (default: stored default)."),
     timeout: Optional[float] = typer.Option(None, "--timeout", help="Per-request timeout seconds."),
     retries: Optional[int] = typer.Option(None, "--retries", min=0, help="Retries on 5xx/429/timeouts."),
 ) -> None:
@@ -193,7 +204,7 @@ def profile_list() -> None:
 
 
 @profile_app.command("use")
-def profile_use(name: str = typer.Argument(...)) -> None:
+def profile_use(name: str = typer.Argument(..., autocompletion=_complete_profiles)) -> None:
     """Set the default profile."""
     if name not in list_profiles():
         _fail(f"profile '{name}' not found", EXIT_USAGE)
@@ -202,13 +213,69 @@ def profile_use(name: str = typer.Argument(...)) -> None:
 
 
 @profile_app.command("remove")
-def profile_remove(name: str = typer.Argument(...), yes: bool = typer.Option(False, "--yes", help="Skip confirmation.")) -> None:
+def profile_remove(name: str = typer.Argument(..., autocompletion=_complete_profiles), yes: bool = typer.Option(False, "--yes", help="Skip confirmation.")) -> None:
     """Delete a profile."""
     if not yes and not typer.confirm(f"Remove profile '{name}'?"):
         raise typer.Exit(EXIT_USAGE)
     from .config import delete_profile
     delete_profile(name)
     print(f"removed '{name}'")
+
+
+# -- shell completion ---------------------------------------------------------
+
+completions_app = typer.Typer(help="Shell completion: print the init script or install it into your rc file.", no_args_is_help=True)
+app.add_typer(completions_app, name="completions")
+
+
+@completions_app.command("show")
+def completions_show(
+    shell: str = typer.Argument(..., help="Shell to print the init script for (bash, zsh, fish)."),
+) -> None:
+    """Print the shell init script — source it via eval in your rc file.
+
+    Example:
+      eval "$(mycli completions show bash)"   # ~/.bashrc
+      eval "$(mycli completions show zsh)"    # ~/.zshrc
+      mycli completions show fish | source    # fish config
+    """
+    import typer.main as _typer_main
+
+    try:
+        script = _completions.get_completion_script("mycli", shell, click_cmd=_typer_main.get_command(app))
+    except ValueError as exc:
+        _fail(str(exc), EXIT_USAGE)
+    print(script, end="" if script.endswith("\\n") else "\\n")
+
+
+@completions_app.command("install")
+def completions_install(
+    shell: Optional[str] = typer.Argument(None, help="Shell to install for (bash, zsh, fish). Omit: detect from $SHELL."),
+    rcfile: Optional[str] = typer.Option(None, "--rcfile", help="Rc file to edit (default: ~/.bashrc, ~/.zshrc, fish config)."),
+    yes: bool = typer.Option(False, "--yes", help="Skip confirmation (needed for non-interactive/agent use)."),
+) -> None:
+    """Install the eval line into your rc file (idempotent; keeps a .bak backup).
+
+    Example:
+      mycli completions install          # detect shell from $SHELL
+      mycli completions install bash     # explicit shell
+      mycli completions install zsh --rcfile ~/.zshrc --yes
+    """
+    from pathlib import Path as _Path
+
+    resolved = shell or _completions.detect_shell()
+    if resolved is None:
+        _fail(f"cannot detect shell from $SHELL={os.environ.get('SHELL', '')!r}; pass bash, zsh, or fish explicitly", EXIT_USAGE)
+    if not yes and sys.stdin.isatty() and not typer.confirm(f"Add mycli completion to your {resolved} rc file?"):
+        raise typer.Exit(EXIT_USAGE)
+    try:
+        rc, changed = _completions.install_completion("mycli", resolved, _Path(rcfile) if rcfile else None)
+    except ValueError as exc:
+        _fail(str(exc), EXIT_USAGE)
+    if changed:
+        _completions.print_install_hint("mycli", resolved, rc)
+    else:
+        print(f"already installed in {rc}", file=sys.stderr)
 
 
 def main() -> None:
