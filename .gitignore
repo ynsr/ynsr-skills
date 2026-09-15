@@ -1,0 +1,18 @@
+# Python / uv side-artifacts (never commit; recreable via `uv sync`).
+# NOTE: this covers template scaffolding inside this repo. Real tools
+# generated FROM these templates follow the skill instead: full Python
+# projects commit uv.lock, ignore .venv/.
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/*.egg-info/
+**/dist/
+**/build/
+skills/cli-app-generator/templates/**/uv.lock
+
+# Editor / OS cruft
+.vscode/
+.idea/
+*.swp
+.DS_Store
