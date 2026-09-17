@@ -77,7 +77,12 @@ For anything meant to survive a reboot or run unattended, generate a systemd uni
 
 ### Install/uninstall scripts
 
-Generate separate `install.sh`/`uninstall.sh` when the tool is bash-based (no package manager to lean on) or install involves more than copying one file (config dirs, systemd unit, venv, completions). Idempotent, safe to re-run; `uninstall.sh` reverses everything `install.sh` created, including disabling/removing a systemd service.
+Generate separate `install.sh`/`uninstall.sh` when the tool is bash-based (no package manager to lean on) or install involves more than copying one file (config dirs, systemd unit, venv, completions). Idempotent, safe to re-run; `uninstall.sh` reverses everything `install.sh` created, including disabling/removing a systemd service. Templates: `templates/python-project/install.sh` / `uninstall.sh` (`<tool-name>`/`<package>` placeholders).
+
+**Stale-install guard (Python project tier).** `uv tool install` and `pipx install` snapshot the source into an isolated venv — workspace edits never reach the installed binary until reinstall. Every Python CLI ships three parts:
+1. `install.sh` writes `~/.local/share/<tool>/install-receipt.json` (`source_hash`: SHA-256 over source `*.py`, relative paths + bytes, 12 hex chars; `installed_at`; `source_dir`) and runs `<tool> doctor` as a self-check. One canonical installer (uv preferred, pipx fallback) — mixing both fights over `~/.local/bin`.
+2. `<tool> doctor` compares the receipt hash against the live tree: exit 0 in sync, exit 1 with the fix command (`./install.sh` or `pipx install --force .`) when stale/missing. Share-dir path must honor `$HOME` so tests can redirect it.
+3. A dev-run warning on every invocation when `__file__` resolves to a working tree (not `site-packages`/`.local/share`) and the tree hash differs from the receipt — catches "edited source, forgot to reinstall" before it confuses the user. Never warn from the installed copy itself.
 
 ### cli-hub registration
 
