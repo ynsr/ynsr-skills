@@ -9,39 +9,34 @@ Governs how to build a CLI tool when the user wants something reusable — not t
 
 ## Step 0: Is this actually a "tool" request?
 
-- **Use this skill**: "write a script that reconciles X against Y", "build a CLI tool for downloading movies from these sites", "make a tool that queries logs in a time range"
-- **Skip it, just answer inline**: "quick script to check if this table has duplicates", "one-liner to see what's in this log"
+- **Use**: "script that reconciles X against Y", "build a CLI tool for downloading movies", "tool that queries logs in a time range"
+- **Skip, answer inline**: "quick script to check if this table has duplicates", one-liners
 
-If ambiguous, default to treating it as a real tool — better to over-deliver structure than leave a script that has to be rebuilt later.
+Ambiguous → treat as a real tool.
 
 ## Step 1: Ask for missing required inputs — don't guess
 
-Before writing code, check whether the tool needs any of: credentials/connection info, target paths, API endpoints, or other inputs that materially change behavior and weren't given. If a required or high-impact option is missing, **stop and ask the user interactively** rather than inventing a placeholder or a silent default. Non-critical options (things with a genuinely safe default, like `--timeout`) don't need to be asked — just default them and mention the default in `--help`.
+Before writing code: missing required/high-impact inputs (credentials, target paths, API endpoints) → **stop and ask interactively**; never invent a placeholder or silent default. Options with a genuinely safe default (`--timeout`) → just default them and mention it in `--help`.
 
 ## Step 2: Identify the audience — AI agents or humans?
 
-Before writing code, decide the tool's **primary audience**: AI agents (invoked by automated workflows, output piped into other tools) or human users (run interactively at a terminal). The request is only clear if it names who consumes the output ("for my own terminal use", "for agents to call"). If it doesn't, **stop and ask the user** before anything else — "CLIs get piped anyway" and "CSV is the safe default" are guessing, not deciding. When **updating an existing CLI**, read the audience line from its AGENTS.md; if it's missing there, ask.
+Decide before writing code. The request is clear only if it names who consumes the output ("for my terminal use", "for agents to call"); otherwise **stop and ask** — "CLIs get piped anyway" and "CSV is the safe default" are guessing. Updating an existing CLI → read the audience line from its AGENTS.md; missing → ask. Recording the audience is required: full projects in AGENTS.md (see below), standalone scripts in the `--help` epilog.
 
-The choice drives defaults everywhere (output format, help, interaction):
+- **AI agents**: machine-parseable defaults — CSV with a header row for lists/structured data (`--json` opts into JSON), stable documented exit codes, non-interactive. No pretty-printing by default.
+- **Human users**: experience-first — pretty-printed tables/lists (Rich), formatted and colored help, readable progress, confirmations before destructive actions; `--csv`/`--json` opt-in flags for scripting.
 
-- **AI agents**: machine-parseable by default — CSV with a header row for lists/structured data (`--json` to opt into JSON), stdout carries output only, stable documented exit codes, non-interactive, errors/logs on stderr. No pretty-printing by default.
-- **Human users**: experience-first by default — pretty-printed tables/lists (Rich), formatted and colored help, readable progress, confirmations before destructive actions. Keep `--csv`/`--json` as opt-in flags for scripting.
-
-Record the audience in the app's AGENTS.md (required — see AGENTS.md section below).
 ## Step 3: Pick the tier
-
-Decide from complexity signals, not a line-count guess.
 
 | Tier | Use when | Runtime |
 |---|---|---|
 | **Bash** | Single concern, orchestrating existing CLI tools (`jq`, `curl`, `psql`, `git`), no real data structures | `bash` |
-| **Python, single-file** | Real argument parsing (subcommands, many flags), structured data (JSON/CSV/dict), retry/backoff logic, or bash would be unreadable/unsafe | `uv run script.py` via **PEP 723 inline metadata** — no project scaffolding |
-| **Python, full project** | >~1000 lines, multiple modules, needs install/distribution beyond one machine, or plugin-style architecture | `uv` for deps, `pipx install .` for the entry point |
-| **Go** | Must keep running: listens on a port, background service/daemon, survives independent of a shell session | Standard Go layout, likely a systemd unit |
+| **Python, single-file** | Real argument parsing, structured data, retry/backoff logic, or bash would be unreadable/unsafe | `uv run script.py` via PEP 723 inline metadata |
+| **Python, full project** | >~1000 lines, multiple modules, install/distribution beyond one machine, or plugin architecture | `uv` deps, `pipx install .` entry point |
+| **Go** | Must keep running: port listener, background service/daemon | Standard layout, likely a systemd unit |
 
-Prefer Python over bash once you're parsing structured output, handling more than 2-3 error branches, or doing non-trivial conditionals — bash error handling degrades fast past that point.
+Prefer Python over bash once parsing structured output, >2-3 error branches, or non-trivial conditionals — bash error handling degrades fast.
 
-**Single-file Python (PEP 723)** — the tier people skip. Real deps, no project ceremony:
+**Single-file Python (PEP 723)**:
 ```python
 #!/usr/bin/env -S uv run --script
 # /// script
@@ -49,7 +44,7 @@ Prefer Python over bash once you're parsing structured output, handling more tha
 # dependencies = ["httpx", "typer"]
 # ///
 ```
-Default to this for the Python tier unless the user wants it installed elsewhere.
+Default for the Python tier unless the user wants it installed elsewhere.
 
 **Full Python project:**
 ```
@@ -62,11 +57,6 @@ tool-name/
 ```
 Install via `pipx install .` (or `--editable .` while iterating) — note this in the README.
 
-- `templates/python-project/` — full multi-file layout (solr-cli extract): profile store + httpx client with proxy normalization/retries + Typer CLI (`add_completion=False`; CSV default, `--json`, wizard with completion-install offer, interactive pick) + `completions show|install` (eval-line scripts, idempotent rc edit) + mock-transport pytest suite (16 tests incl. completion idempotency, offline). Verified: `uv sync && .venv/bin/python -m pytest` → all pass.
-- `templates/python-single-file/` — one-file layout (mbapi extract): constants → 0600 profile store → requests.Session with retries → domain functions → Typer commands (`add_completion=False`, `completions show|install` inline) → `main()`, plus the install story: `install.sh` (copy into `~/.local/bin/`, SHA-256 install receipt, `cli-hub register`) + `uninstall.sh` + inline dev-warning (running the source tree while the installed copy is stale → stderr hint to re-run `install.sh`). Verified: runs under `uv run --with requests,typer,click`.
-
-Bash and Go templates: not yet provided — follow the tiers above.
-
 **Go project:**
 ```
 tool-name/
@@ -77,114 +67,80 @@ tool-name/
 ├── internal/
 └── *_test.go beside the code they cover
 ```
-For anything meant to survive a reboot or run unattended, generate a systemd unit alongside it (see the systemd rules below).
+For anything that must survive reboot or run unattended, add a systemd unit (see below).
+
+Templates: `templates/python-project/` (profiles, setup wizard, completions, doctor/receipt, mock-transport offline tests) and `templates/python-single-file/` (one file + install/uninstall scripts with receipt, registration, dev-warning). Copy them rather than reinventing; Bash/Go templates don't exist yet — follow the layouts above.
 
 ### README.md and AGENTS.md (full projects)
 
-**README.md**: one-line description up top (short enough as a GitHub repo description) → Introduction (plain-terms problem it solves) → Install → Uninstall → Usage (real commands) → Caveats (known limits, footguns) → short How It Works.
+**README.md**: one-line description up top (GitHub-repo short) → Introduction → Install → Uninstall → Usage (real commands) → Caveats → short How It Works.
 
-**AGENTS.md**: exact build/test commands (copy-pasteable), how the app works end to end, and a responsibility→module map (e.g. "retry logic → `internal/retry`") so an agent can find the right file without grepping the whole tree. Open with the primary-audience line (e.g. `Primary audience: AI agents — CSV/JSON output, non-interactive`) — required by Step 2; agents updating the app rely on it to keep conventions consistent. Standalone scripts have no AGENTS.md — state the audience in the `--help` epilog instead. Add a line referencing this skill (`cli-app-generator`) so future agents updating the CLI follow its conventions rather than inventing new ones.
+**AGENTS.md**: opens with the audience line (e.g. `Primary audience: AI agents — CSV/JSON output, non-interactive`), then copy-pasteable build/test commands, end-to-end architecture, and a responsibility→module map ("retry logic → `internal/retry`") so an agent finds the right file without grepping. Add a line referencing this skill (`cli-app-generator`) so future agents follow its conventions.
 
 ### Install/uninstall scripts
 
-**Required by default.** Every generated CLI ships explicit `install.sh` + `uninstall.sh` — adapted from `templates/python-project/` for full projects; trivial copy-into-`~/.local/bin/` + `chmod +x` + register versions for bash/single-file tiers — **unless the user explicitly asked otherwise**. Never leave installation as prose instructions: an install story the user must hand-assemble is not delivered. Scripts are idempotent and safe to re-run; `uninstall.sh` reverses everything `install.sh` created — package, completions, cron/systemd units, tool-created config, and the install receipt. Templates: `templates/python-project/install.sh` / `uninstall.sh` (`<tool-name>`/`<package>` placeholders).
+**Required by default** (unless the user explicitly declined): idempotent, re-runnable `install.sh` + `uninstall.sh` adapted from the templates — never prose instructions. `uninstall.sh` reverses everything `install.sh` created (package, completions, cron/systemd units, tool config, receipt).
 
-**Stale-install guard (Python project tier).** `uv tool install` and `pipx install` snapshot the source into an isolated venv — workspace edits never reach the installed binary until reinstall. Every Python CLI ships three parts:
-1. `install.sh` writes `~/.local/share/<tool>/install-receipt.json` (`source_hash`: SHA-256 over source `*.py`, relative paths + bytes, 12 hex chars; `installed_at`; `source_dir`) and runs `<tool> doctor` as a self-check. One canonical installer (uv preferred, pipx fallback) — mixing both fights over `~/.local/bin`.
-2. `<tool> doctor` compares the receipt hash against the live tree: exit 0 in sync, exit 1 with the fix command (`./install.sh` or `pipx install --force .`) when stale/missing. Share-dir path must honor `$HOME` so tests can redirect it.
-3. A dev-run warning on every invocation when `__file__` resolves to a working tree (not `site-packages`/`.local/share`) and the tree hash differs from the receipt — catches "edited source, forgot to reinstall" before it confuses the user. Never warn from the installed copy itself.
+**Stale-install guard (Python project tier).** `uv tool install`/`pipx install` snapshot source into an isolated venv — edits never reach the installed binary until reinstall. So: `install.sh` writes `~/.local/share/<tool>/install-receipt.json` (SHA-256 over source `*.py`, 12 hex) and runs `<tool> doctor` as a self-check; `doctor` exits 0 in sync, 1 with the fix command when stale/missing (path must honor `$HOME` so tests can redirect it); every invocation warns on stderr when running from a working tree whose hash differs from the receipt — never from the installed copy. One canonical installer (uv preferred, pipx fallback) — mixing both fights over `~/.local/bin`.
 
 ### cli-hub registration
 
-Every generated CLI must self-register with [cli-hub](https://github.com/ynsr/cli-agents-config/tree/main/tools/cli-hub) (`~/.config/cli-hub/config.yml`, re-read on every hub call) so all skill-generated tools stay discoverable from one entry point:
-
-- `install.sh` ends with a best-effort registration (never fail the install when the hub is absent):
-  ```bash
-  if command -v cli-hub &>/dev/null; then
-    REPO="$(git -C "$DIR" remote get-url origin 2>/dev/null || true)"
-    cli-hub register <tool-name> \
-      --version "<version>" \
-      --description "<one-line description>" \
-      --group "<group>" \
-      --source-path "$DIR" \
-      ${REPO:+--repo "$REPO"} \
-      --config-path "${HOME}/.config/<tool-name>" \
-      --uninstall "$DIR/uninstall.sh" \
-      --reinstall "$DIR/install.sh" \
-      --yes || true
-  fi
-  ```
-  Register the **scripts**, not inline backend commands: hub reinstall/uninstall re-run `install.sh`/`uninstall.sh`, which detect the backend themselves (uv or pipx — never hardcode either) and rewrite the install receipt. Inline `pipx install --force`-style hooks bypass the receipt write and leave `doctor` reporting stale forever. Mixing backends fights over the same `~/.local/bin` symlink — the script's detection owns that choice.
-  Single-file scripts ship `templates/python-single-file/install.sh`/`uninstall.sh` (copy into `~/.local/bin/`, write the install receipt, register — `--source-path` points at the installed copy, `--uninstall`/`--reinstall` point at the scripts). When the user declines scripts, run the equivalent `cli-hub register` inline once after copying the script into `~/.local/bin/`.
-- `uninstall.sh` ends with `cli-hub unregister <tool-name> --yes || true` (best-effort, same guard).
-- Fill every metadata field you know: `--version` (from `pyproject.toml`/`--version`), `--description` (README one-liner), `--group` (domain noun: `git`, `media`, `db`, `net`, `meta`, `misc`), `--source-path` (project dir), `--repo` (git origin URL, empty when none), `--config-path` (`~/.config/<tool>`), `--uninstall`/`--reinstall` (the project's `uninstall.sh`/`install.sh` — see above).
-- The hub detects missing binaries itself (`cli-hub prune` lists entries with no binary on `PATH` and removes them only after user confirmation), so uninstall paths don't need hub cleanup beyond `unregister`.
-- The hub can surface install health itself: `cli-hub doctor` runs `<tool> doctor` for every entry with an install receipt (JSON status preferred, bare-exit fallback), so keeping the `doctor` command's output contract (`status: ok|stale|missing`) makes the install self-monitoring.
+Every CLI self-registers with [cli-hub](https://github.com/ynsr/cli-agents-config/tree/main/tools/cli-hub) so skill-generated tools stay discoverable from one entry point: `install.sh` ends with a guarded best-effort `cli-hub register` (hub absent → never fail the install; fill `--version`, `--description`, `--group` (domain noun: `git|media|db|net|meta|misc`), `--source-path`, `--repo` (empty when none), `--config-path`, `--uninstall`/`--reinstall`), `uninstall.sh` ends with guarded `cli-hub unregister`. Register the **scripts**, not inline backend commands: hub reinstall/uninstall re-run `install.sh`/`uninstall.sh`, which detect the backend themselves (uv or pipx — never hardcode) and rewrite the receipt; inline `pipx install --force` hooks leave `doctor` reporting stale forever. User declines scripts → run the equivalent register inline once after copying to `~/.local/bin/`. The hub self-monitors: `prune` catches missing binaries, `cli-hub doctor` runs `<tool> doctor` per entry — keep the `status: ok|stale|missing` output contract.
 
 ### systemd-managed services
 
-Typically the Go tier. Default to a **user-scoped service** (`~/.config/systemd/user/`, `systemctl --user`) — system-wide only if explicitly requested or domain-required (pre-login start, privileged port, multi-user). `install` must also check/enable lingering (`loginctl show-user $USER --property=Linger`; if not on, `loginctl enable-linger $USER`) — without it a user service dies at logout, silently defeating the point. Ship dedicated lifecycle subcommands — `tool-name service install|uninstall|start|stop|restart|status|logs` — wrapping the unit file + `systemctl --user`/`journalctl --user` calls so the user never hand-writes them.
+Default to a **user-scoped** service (`~/.config/systemd/user/`, `systemctl --user`); system-wide only if explicitly requested or domain-required. `install` checks/enables lingering (`loginctl enable-linger $USER`) — without it the service dies at logout. Ship lifecycle subcommands — `tool-name service install|uninstall|start|stop|restart|status|logs` — wrapping the unit + `systemctl --user`/`journalctl --user`, so nobody hand-writes them.
 
 ## Step 4: Cross-cutting rules (every tier)
 
-**Idempotency.** Re-running with the same inputs must be safe and non-duplicating: check state before mutating, use atomic writes (temp file + rename), and if a step truly can't be idempotent, use a marker/lock file to block re-execution rather than silently repeating it.
+**Idempotency.** Re-running with the same inputs is safe and non-duplicating: check state before mutating, atomic writes (temp + rename), marker/lock file when a step truly can't be idempotent.
 
-**Dry-run for anything destructive.** "Destructive" = deletes/overwrites files, writes to a DB, calls an API with side effects (POST/PUT/PATCH/DELETE), or is otherwise hard to undo.
-- `--dry-run` prints exactly what *would* happen — actual records/requests, not just "would proceed"
-- destructive actions require `--yes`/`--force` to actually execute; never run unattended by default
+**Dry-run for anything destructive** (deletes/overwrites files, DB writes, side-effecting API calls, otherwise hard to undo): `--dry-run` prints the actual records/requests it *would* use — and execution requires `--yes`/`--force`.
 
-**Standard flags, every tool:**
-- `-h`/`--help` — full usage, one example per major use case with real args, exit code meanings, and the main config file path (e.g. `~/.config/<tool>/config.yaml`). Write it like documentation for a cold reader — an AI agent or a human, matching the Step 2 audience.
-- `--version`
-- `-v`/`--verbose`, `-q`/`--quiet`
-- `--json` where output is structured — **only valid if logs/progress go to stderr and stdout carries just the output.** Mixing status lines into stdout silently breaks piping into `jq` or agent consumption.
-- `--yes`/`--force` to bypass confirmation prompts (needed for non-interactive/agent use)
+**Standard flags, every tool:** `-h`/`--help` (full usage, one real-arg example per major use case, exit-code meanings, config file path — written for a cold reader matching the Step 2 audience), `--version`, `-v`/`-q`, `--json`, `--yes`/`--force` to bypass confirmations.
 
-**In-place progress for anything iterative/long-running.** Downloading a file, processing a batch, walking a list of items — update a single line in place (`\r`, no newline until done) rather than a new line per item, showing real detail (percentage, current item, N/total). Only when stdout is a TTY and `--quiet`/`--json` aren't set — never emit `\r` into piped/JSON output; fall back to periodic plain-line updates (e.g. every 10% or every N items) for non-TTY output like logs or `nohup`. Print a final newline on completion/error so the last state survives in scrollback.
+**Output format** (defaults follow the Step 2 audience): AI-agent tools — lists/tables default to CSV with a header row, `--json` opts into JSON; human tools — pretty tables by default, `--csv`/`--json` opt into machine formats. Always: **stdout carries output only — every log/progress line goes to stderr**; mixing status into stdout silently breaks `jq`/agent piping.
 
-**Exit codes.** Small consistent convention, documented in `--help`: `0` success, `1` general error, `2` usage error, and add more (e.g. `3` network/timeout, `4` partial success) if failure modes meaningfully differ.
+**In-place progress** for anything iterative/long-running: single line updated in place (`\r`, percentage, current item, N/total) — only on a TTY with `--quiet`/`--json` unset; never emit `\r` into piped/JSON output (non-TTY → periodic plain-line updates). Final newline on completion/error.
 
-**Network operations.** Every network call gets `--timeout`, `--retries`, `--retry-delay` (exponential backoff between retries), exposed as flags with sane defaults rather than hardcoded.
+**Exit codes** documented in `--help`: `0` success, `1` general error, `2` usage; more (e.g. `3` network/timeout, `4` partial success) only if failure modes meaningfully differ.
 
-**Secrets and config.** Never hardcode credentials or endpoints. Read from env vars or a config file, document which ones in `--help`, and fail immediately with a clear message if something required is missing.
+**Network operations:** every call gets `--timeout`, `--retries`, `--retry-delay` (exponential backoff) as flags with sane defaults, not hardcoded.
 
-- **Proxy env**: normalize `socks://` → `socks5://` in ALL_PROXY/HTTP(S)_PROXY before building an httpx client — httpx raises `ValueError: Unknown scheme` on bare `socks://`, curl treats it as SOCKS5. (See `templates/python-project/src/mycli/client.py`.)
-- **Help**: Typer + Rich — panels, aligned columns, examples per command. Docstring's first paragraph is the one-liner; real example commands under `Example:`.
-- **Profiles**: if the tool can reach multiple sources/orgs, support named profiles (create/list/use/remove) + a `--profile` flag on every command; no flag = stored default profile. Secrets via env vars or 0600 local files — never flags (shell history), code, or logs.
-- **Setup wizard**: `tool init` walks first-run config (endpoint → auth → default profile), saves it, and verifies with one live call.
-- **Shell completion** (every Python CLI — both templates ship it; see `templates/python-project/src/mycli/completions.py`):
-  - Construct the app with `add_completion=False` (disables Typer's competing `--install-completion`/`--show-completion` flags) and ship ONE system: a `completions` group with `show <bash|zsh|fish>` (prints the init script for `eval "$(tool completions show bash)"` in `~/.bashrc` / `~/.zshrc`, `| source` for fish) and `install [shell] [--rcfile --yes]` (idempotent marker-block rc edit: atomic tmp+rename write, `.bak` backup, stale-block replace not duplicate; zsh block also ensures `compinit`).
-  - Do NOT hand-code completion order — Click resolves the cursor position: subcommand names and `-`/`--` flags complete automatically. The only custom code is one `autocompletion=` callback per *dynamic value* (profile/resource names, like `git branch` cycling branches): filter on the `incomplete` prefix, read local state only (never network), never raise (return `[]` on any failure so Tab never breaks). Use `completions.complete_profile_names(list_profiles)` / `_complete_profiles` in the templates.
-  - `install` with no shell arg auto-detects from `$SHELL` (`detect_shell()`; None → usage error telling the user to pass the shell explicitly); `--shell` beats positional for agent/non-interactive use; `--rcfile` overrides per-shell default (`~/.bashrc`, `~/.zshrc`, `~/.config/fish/config.fish`) for tests; `--yes` bypasses the confirm prompt. Confirm before editing the rc file on a TTY (rc edit is destructive per the dry-run rule); print `source <rc>` / restart hint to stderr after a change, `already installed` on no-op.
-  - `init` wizard offers completion install at the end (confirm default No; `--no-completion` skips non-interactively). Tradeoff to document in README: `eval $(...)` spawns Python on every new shell (~200–400ms for Typer apps) but never goes stale — the right default for our tier.
-  - Tests (project tier, `tests/unit/test_completions.py`): `show` output non-empty per shell + unknown shell exits 2; install preserves existing rc content, creates `.bak`, second run is a byte-identical no-op; Click-level check that subcommands/flags resolve; value callback filters prefixes and returns `[]` on missing config.
+**Secrets and config:** never hardcode credentials/endpoints — env vars or config files, documented in `--help`; required-but-missing → fail immediately with a clear message.
 
-**Output format** (defaults follow the Step 2 audience): AI-agent tools — lists/tables default to CSV with a header row; `--json` opts into JSON. Human tools — pretty-printed tables by default; `--csv`/`--json` opt into machine formats. Always: stdout carries output only — logs to stderr.
+**Env vars** for stable settings (endpoint, token, profile override): precedence CLI flag > env var > profile > built-in default.
 
-**Env vars**: stable settings (endpoint, auth token, default-profile override) read env vars so users don't repeat flags. Precedence: CLI flag > env var > profile > built-in default.
+**Proxy env:** normalize `socks://` → `socks5://` in ALL_PROXY/HTTP(S)_PROXY before building an httpx client — it raises `ValueError: Unknown scheme` otherwise (see `templates/python-project/src/mycli/client.py`).
 
-**Non-interactive by default.** Nothing blocks on stdin unless the tool is explicitly interactive. Confirmation prompts only guard destructive actions; `--yes` bypasses them.
+**Help rendering (Python):** Typer + Rich panels; docstring's first paragraph is the one-liner; real commands under `Example:`.
 
-**Interactive selection**: when a required choice (profile, resource id) is missing and stdin is a TTY, list options and prompt; non-TTY/`--yes` skips prompts and fails with an actionable message.
+**Profiles:** multi-source/org tools get named profiles (create/list/use/remove) + `--profile` on every command; no flag = stored default. Secrets via env vars or 0600 files — never flags (shell history), code, or logs.
 
-**Bash baseline** (when bash is chosen): `set -euo pipefail`, a `trap` for cleanup, shellcheck-clean. Reaching for associative-array-of-arrays or real JSON parsing is a signal to switch to Python.
+**Setup wizard:** `tool init` walks first-run config (endpoint → auth → default profile), saves, verifies with one live call, offers completion install.
 
-**Testing scales with tier.** Trivial bash: none needed. Reused bash: consider `bats` or inline e2e (see `references/e2e-bash-testing.md` for a full self-contained test pattern with temp repos, assert helpers, and git fixture setup). Python (either tier): pytest covering non-trivial logic. Go: `go test`, table-driven where it fits. Full projects target **≥75% coverage on core logic** (`pytest --cov` / `go test -cover`), excluding thin CLI wiring/`main()` — skip the target where it'd force excessive mocking that makes tests worse than none; fast real e2e tests beat inflated unit coverage. Self-check once with the coverage tool; treat as a target, not a blocking gate.
+**Shell completion** (every Python CLI — see `templates/python-project/src/mycli/completions.py`): construct with `add_completion=False`; ONE system — `completions show <bash|zsh|fish>` (eval-line init script) + `install [shell] [--yes]` (idempotent marker-block rc edit: atomic write, `.bak`, stale-block replace, not duplicate; zsh block ensures `compinit`; no shell arg → detect `$SHELL`; TTY confirm before editing the rc). Never hand-code completion order — Click resolves subcommands/flags from cursor position. Custom code only `autocompletion=` callbacks for dynamic values (profile/resource names): filter on the `incomplete` prefix, read local state only, return `[]` on any failure so Tab never breaks.
 
-**Repairing export/block churn.** When surgical edits to ordered blocks (`__all__`, imports, flag lists) thrash — 3 failed patches on one file — stop patching and script the repair (see `recovering-from-edit-thrash`).
+**Interaction model:** non-interactive by default — nothing blocks on stdin unless explicitly interactive. Required choice (profile, resource id) missing + TTY → list options and prompt; non-TTY/`--yes` → fail with an actionable message. Confirmation prompts guard only destructive actions.
+
+**Bash baseline:** `set -euo pipefail`, `trap` cleanup, shellcheck-clean. Associative-array-of-arrays or real JSON parsing → switch to Python.
+
+**Testing scales with tier.** Trivial bash: none. Reused bash: `bats` or inline e2e (`references/e2e-bash-testing.md`). Python: pytest over non-trivial logic. Go: `go test`, table-driven. Full projects: ≥75% coverage on core logic (excluding thin wiring/`main()`) — skip where it would force excessive mocking; fast real e2e beats inflated unit coverage; self-check once, target not gate.
+
+**Repairing export/block churn:** 3 failed patches on one file → stop, script the repair (`recovering-from-edit-thrash`).
 
 ## Step 5: Where it lives
 
-Standalone scripts (bash, single-file Python) go to `~/.local/bin/`, made executable, no extension on the installed copy — unless the user has already established a different convention in this conversation. Full projects get their own directory and are installed via `pipx install .` / `go install`, not copied by hand.
+Standalone scripts (bash, single-file Python) → `~/.local/bin/`, executable, no extension — unless the user established another convention. Full projects → own directory, installed via `pipx install .` / `go install`, never hand-copied.
 
 ## Step 6: Version control
 
-For anything that gets its own directory (full Python/Go projects, or a multi-file bash tool with install scripts) — not a single standalone script:
+For anything with its own directory (full projects, multi-file bash tools with install scripts):
 
-- **`.gitignore` matched to the tier**: Python → `__pycache__/`, `.venv/`, `.pytest_cache/`, `dist/`, `*.egg-info/` (commit `uv.lock`, don't ignore it); Go → build binaries (commit `go.sum`); plus editor/OS cruft. Also ignore real secrets (`.env`, local creds) from the start, not added after the first commit.
-- **`git init` + initial commit** for these projects — local bookkeeping, do it without asking.
-- **If there's no remote yet**, suggest (don't do) creating a GitHub repo and pushing — an account-touching action needing the user's go-ahead. Use a connected GitHub tool if available, otherwise give the exact `gh repo create`/`git remote add`/`git push` commands. Only for durable multi-file tools, and only after confirming `.gitignore` actually excludes secrets.
+- **`.gitignore` per tier**: Python → `__pycache__/`, `.venv/`, `.pytest_cache/`, `dist/`, `*.egg-info/` (commit `uv.lock`); Go → build binaries (commit `go.sum`); plus editor/OS cruft and real secrets (`.env`, local creds) from the first commit, not added later.
+- **`git init` + initial commit** — local bookkeeping, do without asking.
+- **No remote** → suggest (don't create) a GitHub repo — account-touching, needs the user's go-ahead; give exact `gh repo create`/`git remote add`/`git push` commands. Only for durable multi-file tools, only after confirming `.gitignore` excludes secrets.
 
 ## Output
 
-Deliver the working file(s), `chmod +x` scripts, and exercise `--help`, `--dry-run` (if applicable), and one real invocation yourself before handing it over. If install/uninstall scripts or a systemd service subcommand exist, run through those too — install, check `status`, uninstall — rather than handing over untested lifecycle management.
+Deliver the working file(s), `chmod +x` scripts, and exercise `--help`, `--dry-run` (if applicable), and one real invocation before handing over. If install/uninstall scripts or a systemd service subcommand exist, run install → `status` → uninstall too — untested lifecycle management is not delivered.
