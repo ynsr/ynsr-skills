@@ -73,7 +73,7 @@ For anything meant to survive a reboot or run unattended, generate a systemd uni
 
 **README.md**: one-line description up top (short enough as a GitHub repo description) → Introduction (plain-terms problem it solves) → Install → Uninstall → Usage (real commands) → Caveats (known limits, footguns) → short How It Works.
 
-**AGENTS.md**: exact build/test commands (copy-pasteable), how the app works end to end, and a responsibility→module map (e.g. "retry logic → `internal/retry`") so an agent can find the right file without grepping the whole tree.
+**AGENTS.md**: exact build/test commands (copy-pasteable), how the app works end to end, and a responsibility→module map (e.g. "retry logic → `internal/retry`") so an agent can find the right file without grepping the whole tree. Add a line referencing this skill (`cli-app-generator`) so future agents updating the CLI follow its conventions rather than inventing new ones.
 
 ### Install/uninstall scripts
 
@@ -92,7 +92,7 @@ Typically the Go tier. Default to a **user-scoped service** (`~/.config/systemd/
 - destructive actions require `--yes`/`--force` to actually execute; never run unattended by default
 
 **Standard flags, every tool:**
-- `-h`/`--help` — full usage, one example per major use case with real args, and exit code meanings. Write it like documentation for another AI agent reading it cold.
+- `-h`/`--help` — full usage, one example per major use case with real args, exit code meanings, and the main config file path (e.g. `~/.config/<tool>/config.yaml`). Write it like documentation for another AI agent reading it cold.
 - `--version`
 - `-v`/`--verbose`, `-q`/`--quiet`
 - `--json` where output is structured — **only valid if logs/progress go to stderr and stdout carries just the output.** Mixing status lines into stdout silently breaks piping into `jq` or agent consumption.
@@ -127,9 +127,9 @@ Typically the Go tier. Default to a **user-scoped service** (`~/.config/systemd/
 
 **Bash baseline** (when bash is chosen): `set -euo pipefail`, a `trap` for cleanup, shellcheck-clean. Reaching for associative-array-of-arrays or real JSON parsing is a signal to switch to Python.
 
-**Extensibility via composition.** When a tool will plausibly grow new targets (sites, data sources, backends), use a registry/strategy pattern from the start: one small module/function per target behind a common interface, dispatched via a lookup table. Document the extension point in code so adding one later is localized, not a refactor.
-
 **Testing scales with tier.** Trivial bash: none needed. Reused bash: consider `bats` or inline e2e (see `references/e2e-bash-testing.md` for a full self-contained test pattern with temp repos, assert helpers, and git fixture setup). Python (either tier): pytest covering non-trivial logic. Go: `go test`, table-driven where it fits. Full projects target **≥75% coverage on core logic** (`pytest --cov` / `go test -cover`), excluding thin CLI wiring/`main()` — skip the target where it'd force excessive mocking that makes tests worse than none; fast real e2e tests beat inflated unit coverage. Self-check once with the coverage tool; treat as a target, not a blocking gate.
+
+**Repairing export/block churn.** When surgical edits to ordered blocks (`__all__`, imports, flag lists) thrash — 3 failed patches on one file — stop patching and script the repair (see `recovering-from-edit-thrash`).
 
 ## Step 4: Where it lives
 
