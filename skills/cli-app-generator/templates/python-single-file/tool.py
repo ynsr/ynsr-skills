@@ -190,7 +190,7 @@ def fetch_items(session, resource: str) -> list[dict]:
 # --- Typer commands ----------------------------------------------------------
 
 app = typer.Typer(
-    help="<tool> — one-line description.",
+    help="<tool> — one-line description. Primary audience: AI agents — CSV with a header row by default, --json for JSON.",
     no_args_is_help=True,
     add_completion=False,  # single completion system: `completions show|install` below
     context_settings={"help_option_names": ["-h", "--help"]},

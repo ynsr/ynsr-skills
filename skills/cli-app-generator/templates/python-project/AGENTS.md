@@ -22,6 +22,7 @@ All tests pass offline — HTTP is mocked with httpx.MockTransport. Never write 
 
 ## Conventions
 
+- Primary audience: AI agents — CSV with a header row defaults for lists/structured data; `--json` opts into JSON.
 - stdout carries ONLY command output (CSV/JSON); every log/progress line goes to stderr — `--json` pipes into `jq` must never break.
 - Destructive ops require `--yes` non-interactively; a missing `--yes` exits 2 (usage).
 - Exit codes: 0 success · 1 general/runtime error · 2 usage error · 3 network/timeout.

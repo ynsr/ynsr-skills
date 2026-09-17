@@ -1,6 +1,6 @@
 ---
 name: cli-app-generator
-description: Generate CLI tool/app/script explicitly requested by user. Ignore for ad-hoc ephemeral one-off scripts
+description: Generate or update a CLI tool/app/script explicitly requested by user. Ignore for ad-hoc ephemeral one-off scripts
 ---
 
 # CLI App Generator
@@ -18,7 +18,17 @@ If ambiguous, default to treating it as a real tool — better to over-deliver s
 
 Before writing code, check whether the tool needs any of: credentials/connection info, target paths, API endpoints, or other inputs that materially change behavior and weren't given. If a required or high-impact option is missing, **stop and ask the user interactively** rather than inventing a placeholder or a silent default. Non-critical options (things with a genuinely safe default, like `--timeout`) don't need to be asked — just default them and mention the default in `--help`.
 
-## Step 2: Pick the tier
+## Step 2: Identify the audience — AI agents or humans?
+
+Before writing code, decide the tool's **primary audience**: AI agents (invoked by automated workflows, output piped into other tools) or human users (run interactively at a terminal). The request is only clear if it names who consumes the output ("for my own terminal use", "for agents to call"). If it doesn't, **stop and ask the user** before anything else — "CLIs get piped anyway" and "CSV is the safe default" are guessing, not deciding. When **updating an existing CLI**, read the audience line from its AGENTS.md; if it's missing there, ask.
+
+The choice drives defaults everywhere (output format, help, interaction):
+
+- **AI agents**: machine-parseable by default — CSV with a header row for lists/structured data (`--json` to opt into JSON), stdout carries output only, stable documented exit codes, non-interactive, errors/logs on stderr. No pretty-printing by default.
+- **Human users**: experience-first by default — pretty-printed tables/lists (Rich), formatted and colored help, readable progress, confirmations before destructive actions. Keep `--csv`/`--json` as opt-in flags for scripting.
+
+Record the audience in the app's AGENTS.md (required — see AGENTS.md section below).
+## Step 3: Pick the tier
 
 Decide from complexity signals, not a line-count guess.
 
@@ -73,7 +83,7 @@ For anything meant to survive a reboot or run unattended, generate a systemd uni
 
 **README.md**: one-line description up top (short enough as a GitHub repo description) → Introduction (plain-terms problem it solves) → Install → Uninstall → Usage (real commands) → Caveats (known limits, footguns) → short How It Works.
 
-**AGENTS.md**: exact build/test commands (copy-pasteable), how the app works end to end, and a responsibility→module map (e.g. "retry logic → `internal/retry`") so an agent can find the right file without grepping the whole tree. Add a line referencing this skill (`cli-app-generator`) so future agents updating the CLI follow its conventions rather than inventing new ones.
+**AGENTS.md**: exact build/test commands (copy-pasteable), how the app works end to end, and a responsibility→module map (e.g. "retry logic → `internal/retry`") so an agent can find the right file without grepping the whole tree. Open with the primary-audience line (e.g. `Primary audience: AI agents — CSV/JSON output, non-interactive`) — required by Step 2; agents updating the app rely on it to keep conventions consistent. Standalone scripts have no AGENTS.md — state the audience in the `--help` epilog instead. Add a line referencing this skill (`cli-app-generator`) so future agents updating the CLI follow its conventions rather than inventing new ones.
 
 ### Install/uninstall scripts
 
@@ -115,7 +125,7 @@ Every generated CLI must self-register with [cli-hub](https://github.com/ynsr/cl
 
 Typically the Go tier. Default to a **user-scoped service** (`~/.config/systemd/user/`, `systemctl --user`) — system-wide only if explicitly requested or domain-required (pre-login start, privileged port, multi-user). `install` must also check/enable lingering (`loginctl show-user $USER --property=Linger`; if not on, `loginctl enable-linger $USER`) — without it a user service dies at logout, silently defeating the point. Ship dedicated lifecycle subcommands — `tool-name service install|uninstall|start|stop|restart|status|logs` — wrapping the unit file + `systemctl --user`/`journalctl --user` calls so the user never hand-writes them.
 
-## Step 3: Cross-cutting rules (every tier)
+## Step 4: Cross-cutting rules (every tier)
 
 **Idempotency.** Re-running with the same inputs must be safe and non-duplicating: check state before mutating, use atomic writes (temp file + rename), and if a step truly can't be idempotent, use a marker/lock file to block re-execution rather than silently repeating it.
 
@@ -124,7 +134,7 @@ Typically the Go tier. Default to a **user-scoped service** (`~/.config/systemd/
 - destructive actions require `--yes`/`--force` to actually execute; never run unattended by default
 
 **Standard flags, every tool:**
-- `-h`/`--help` — full usage, one example per major use case with real args, exit code meanings, and the main config file path (e.g. `~/.config/<tool>/config.yaml`). Write it like documentation for another AI agent reading it cold.
+- `-h`/`--help` — full usage, one example per major use case with real args, exit code meanings, and the main config file path (e.g. `~/.config/<tool>/config.yaml`). Write it like documentation for a cold reader — an AI agent or a human, matching the Step 2 audience.
 - `--version`
 - `-v`/`--verbose`, `-q`/`--quiet`
 - `--json` where output is structured — **only valid if logs/progress go to stderr and stdout carries just the output.** Mixing status lines into stdout silently breaks piping into `jq` or agent consumption.
@@ -149,7 +159,7 @@ Typically the Go tier. Default to a **user-scoped service** (`~/.config/systemd/
   - `init` wizard offers completion install at the end (confirm default No; `--no-completion` skips non-interactively). Tradeoff to document in README: `eval $(...)` spawns Python on every new shell (~200–400ms for Typer apps) but never goes stale — the right default for our tier.
   - Tests (project tier, `tests/unit/test_completions.py`): `show` output non-empty per shell + unknown shell exits 2; install preserves existing rc content, creates `.bak`, second run is a byte-identical no-op; Click-level check that subcommands/flags resolve; value callback filters prefixes and returns `[]` on missing config.
 
-**Output format**: list/table output defaults to CSV with a header row; `--json` opts into JSON. stdout carries output only — logs to stderr.
+**Output format** (defaults follow the Step 2 audience): AI-agent tools — lists/tables default to CSV with a header row; `--json` opts into JSON. Human tools — pretty-printed tables by default; `--csv`/`--json` opt into machine formats. Always: stdout carries output only — logs to stderr.
 
 **Env vars**: stable settings (endpoint, auth token, default-profile override) read env vars so users don't repeat flags. Precedence: CLI flag > env var > profile > built-in default.
 
@@ -163,11 +173,11 @@ Typically the Go tier. Default to a **user-scoped service** (`~/.config/systemd/
 
 **Repairing export/block churn.** When surgical edits to ordered blocks (`__all__`, imports, flag lists) thrash — 3 failed patches on one file — stop patching and script the repair (see `recovering-from-edit-thrash`).
 
-## Step 4: Where it lives
+## Step 5: Where it lives
 
 Standalone scripts (bash, single-file Python) go to `~/.local/bin/`, made executable, no extension on the installed copy — unless the user has already established a different convention in this conversation. Full projects get their own directory and are installed via `pipx install .` / `go install`, not copied by hand.
 
-## Step 5: Version control
+## Step 6: Version control
 
 For anything that gets its own directory (full Python/Go projects, or a multi-file bash tool with install scripts) — not a single standalone script:
 
