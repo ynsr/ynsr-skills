@@ -17,6 +17,7 @@ from . import completions as _completions
 from . import ops
 from .client import Client, NetworkError, SolrHTTPError
 from .config import Profile, ProfileError, get_default, list_profiles, load_profile, resolve_profile, save_profile, set_default
+from . import doctor as _doctor
 
 __version__ = "0.1.0"
 
@@ -276,6 +277,20 @@ def completions_install(
         _completions.print_install_hint("mycli", resolved, rc)
     else:
         print(f"already installed in {rc}", file=sys.stderr)
+
+
+@app.command("doctor")
+def doctor() -> None:
+    """Check the installed copy is in sync with the source tree.
+
+    Example: mycli doctor
+
+    Exit codes: 0 in sync · 1 stale/missing receipt (fix: ./install.sh).
+    """
+    status, message = _doctor.check()
+    print(message)
+    if status != _doctor.OK:
+        raise typer.Exit(EXIT_GENERAL)
 
 
 def main() -> None:

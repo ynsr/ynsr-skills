@@ -18,6 +18,7 @@ All tests pass offline — HTTP is mocked with httpx.MockTransport. Never write 
 3. `client.py` — httpx.Client wrapper: injects Bearer auth, normalizes `socks://` proxy env to `socks5://` before client build, retry with exponential backoff on 5xx/429/timeouts/connect errors, request+response logging to stderr when verbose.
 4. `ops.py` — business operations shared by CLI and tests: request builders, response parsing, error mapping.
 5. `completions.py` + `cli.py` completions group — shell scripts via Click (`show`), idempotent rc install (`install`), `autocompletion=` value callbacks (profiles). No hand-coded ordering.
+6. `doctor.py` + `cli.py` doctor command — install-receipt self-check: compares `~/.local/share/mycli/install-receipt.json` (written by install.sh; SHA-256 over source `*.py`, 12 hex chars) against the live tree; exit 0 in sync / 1 stale-missing with the fix command. Keep the hashing identical to install.sh.
 
 ## Conventions
 

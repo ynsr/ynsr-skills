@@ -54,13 +54,20 @@ if ! command -v uv &>/dev/null && ! command -v pipx &>/dev/null; then
     exit 1
 fi
 
-# 2. Install the Python package (snapshot, not editable).
+# 2. Install the Python package (snapshot, not editable). Record the exact
+#    (un)install commands for the backend actually used — cli-hub must
+#    re-run THIS backend, never a hardcoded one (mixing backends fights
+#    over the same ~/.local/bin symlink).
 echo "  → Installing Python package …"
 cd "$REPO_DIR"
 if command -v uv &>/dev/null; then
     uv tool install --force .
+    UNINSTALL="uv tool uninstall ${TOOL}"
+    REINSTALL="uv tool install --force ${REPO_DIR}"
 elif command -v pipx &>/dev/null; then
     pipx install --force .
+    UNINSTALL="pipx uninstall ${TOOL}"
+    REINSTALL="pipx install --force ${REPO_DIR}"
 fi
 
 # 2b. Write install receipt: SHA-256 over source *.py (relative paths + bytes,
@@ -122,7 +129,7 @@ if command -v cli-hub &>/dev/null; then
         --source-path "$REPO_DIR" \
         ${REPO_URL:+--repo "$REPO_URL"} \
         --config-path "${HOME}/.config/${TOOL}" \
-        --uninstall "${REPO_DIR}/uninstall.sh" \
-        --reinstall "pipx install --force $REPO_DIR" \
+        --uninstall "$UNINSTALL" \
+        --reinstall "$REINSTALL" \
         --yes || true
 fi

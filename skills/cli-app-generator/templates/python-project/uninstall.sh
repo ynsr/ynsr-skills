@@ -15,10 +15,11 @@ echo "==> Removing scheduled jobs / services for ${TOOL} …"
 
 echo "==> Removing Python package …"
 if command -v uv &>/dev/null; then
-    uv tool uninstall "$TOOL" 2>/dev/null || true
-fi
-if command -v pipx &>/dev/null; then
-    pipx uninstall "$TOOL" 2>/dev/null || true
+    uv tool uninstall "$TOOL" 2>/dev/null || echo "  (not installed via uv)"
+elif command -v pipx &>/dev/null; then
+    pipx uninstall "$TOOL" 2>/dev/null || echo "  (not installed via pipx)"
+else
+    echo "  (neither uv nor pipx found; skipping package removal)"
 fi
 
 if command -v cli-hub &>/dev/null; then

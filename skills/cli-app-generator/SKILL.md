@@ -77,7 +77,7 @@ For anything meant to survive a reboot or run unattended, generate a systemd uni
 
 ### Install/uninstall scripts
 
-Generate separate `install.sh`/`uninstall.sh` when the tool is bash-based (no package manager to lean on) or install involves more than copying one file (config dirs, systemd unit, venv, completions). Idempotent, safe to re-run; `uninstall.sh` reverses everything `install.sh` created, including disabling/removing a systemd service. Templates: `templates/python-project/install.sh` / `uninstall.sh` (`<tool-name>`/`<package>` placeholders).
+**Required by default.** Every generated CLI ships explicit `install.sh` + `uninstall.sh` — adapted from `templates/python-project/` for full projects; trivial copy-into-`~/.local/bin/` + `chmod +x` + register versions for bash/single-file tiers — **unless the user explicitly asked otherwise**. Never leave installation as prose instructions: an install story the user must hand-assemble is not delivered. Scripts are idempotent and safe to re-run; `uninstall.sh` reverses everything `install.sh` created — package, completions, cron/systemd units, tool-created config, and the install receipt. Templates: `templates/python-project/install.sh` / `uninstall.sh` (`<tool-name>`/`<package>` placeholders).
 
 **Stale-install guard (Python project tier).** `uv tool install` and `pipx install` snapshot the source into an isolated venv — workspace edits never reach the installed binary until reinstall. Every Python CLI ships three parts:
 1. `install.sh` writes `~/.local/share/<tool>/install-receipt.json` (`source_hash`: SHA-256 over source `*.py`, relative paths + bytes, 12 hex chars; `installed_at`; `source_dir`) and runs `<tool> doctor` as a self-check. One canonical installer (uv preferred, pipx fallback) — mixing both fights over `~/.local/bin`.
@@ -99,11 +99,12 @@ Every generated CLI must self-register with [cli-hub](https://github.com/ynsr/cl
       --source-path "$DIR" \
       ${REPO:+--repo "$REPO"} \
       --config-path "${HOME}/.config/<tool-name>" \
-      --uninstall "pipx uninstall <tool-name>" \
-      --reinstall "pipx install --force $DIR" \
+      --uninstall "$UNINSTALL" \
+      --reinstall "$REINSTALL" \
       --yes || true
   fi
   ```
+  `UNINSTALL`/`REINSTALL` are set by `install.sh` to the backend actually used at install time — pipx → `pipx uninstall <tool>` / `pipx install --force $DIR`; uv → `uv tool uninstall <tool>` / `uv tool install --force $DIR`. Never hardcode pipx: the hub must re-run the backend that owns the install, or its uninstall/reinstall fights the other backend over `~/.local/bin`.
   Single-file scripts (no `install.sh`): run the equivalent `cli-hub register` inline once after copying the script into `~/.local/bin/`, with `--source-path` pointing at the installed copy and `--reinstall` re-running the copy command.
 - `uninstall.sh` ends with `cli-hub unregister <tool-name> --yes || true` (best-effort, same guard).
 - Fill every metadata field you know: `--version` (from `pyproject.toml`/`--version`), `--description` (README one-liner), `--group` (domain noun: `git`, `media`, `db`, `net`, `meta`, `misc`), `--source-path` (project dir), `--repo` (git origin URL, empty when none), `--config-path` (`~/.config/<tool>`), `--uninstall`/`--reinstall` (exact commands that reverse/redo the install).

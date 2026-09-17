@@ -19,6 +19,7 @@ mycli list widgets --json | jq '.[0]'             # JSON instead
 mycli profile create prod --url https://prod.example --default
 mycli list widgets -p prod                        # switch org via --profile
 mycli completions install                          # Tab completion: detects shell, edits rc idempotently
+mycli doctor                                       # install receipt vs source tree: 0 in sync, 1 stale
 ```
 
 ## Shell completion
