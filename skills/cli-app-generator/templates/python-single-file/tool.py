@@ -256,6 +256,7 @@ def completions_show(shell: str = typer.Argument(..., help="Shell to print the i
     Example:
       eval "$(<tool> completions show bash)"   # ~/.bashrc
       eval "$(<tool> completions show zsh)"    # ~/.zshrc
+      <tool> completions show fish | source    # fish config
     """
     import typer.main as _typer_main
     import click.shell_completion as _sc
@@ -271,13 +272,14 @@ def completions_show(shell: str = typer.Argument(..., help="Shell to print the i
 def completions_install(
     shell: Optional[str] = typer.Argument(None, help="Shell to install for (bash, zsh, fish). Omit: detect from $SHELL."),
     rcfile: Optional[str] = typer.Option(None, "--rcfile", help="Rc file to edit (default per shell)."),
-    yes: bool = typer.Option(False, "--yes", help="Skip confirmation."),
+    yes: bool = typer.Option(False, "--yes", help="Skip confirmation (needed for non-interactive/agent use)."),
 ) -> None:
     """Install the eval line into your rc file (idempotent; keeps a .bak backup).
 
     Example:
       <tool> completions install            # detect shell from $SHELL
       <tool> completions install bash       # explicit shell
+    The eval line spawns Python on each new shell (~200-400ms) but never goes stale.
     """
     resolved = shell or _detect_shell()
     if resolved is None:
