@@ -79,6 +79,31 @@ For anything meant to survive a reboot or run unattended, generate a systemd uni
 
 Generate separate `install.sh`/`uninstall.sh` when the tool is bash-based (no package manager to lean on) or install involves more than copying one file (config dirs, systemd unit, venv, completions). Idempotent, safe to re-run; `uninstall.sh` reverses everything `install.sh` created, including disabling/removing a systemd service.
 
+### cli-hub registration
+
+Every generated CLI must self-register with [cli-hub](https://github.com/ynsr/cli-agents-config/tree/main/tools/cli-hub) (`~/.config/cli-hub/config.yml`, re-read on every hub call) so all skill-generated tools stay discoverable from one entry point:
+
+- `install.sh` ends with a best-effort registration (never fail the install when the hub is absent):
+  ```bash
+  if command -v cli-hub &>/dev/null; then
+    REPO="$(git -C "$DIR" remote get-url origin 2>/dev/null || true)"
+    cli-hub register <tool-name> \
+      --version "<version>" \
+      --description "<one-line description>" \
+      --group "<group>" \
+      --source-path "$DIR" \
+      ${REPO:+--repo "$REPO"} \
+      --config-path "${HOME}/.config/<tool-name>" \
+      --uninstall "pipx uninstall <tool-name>" \
+      --reinstall "pipx install --force $DIR" \
+      --yes || true
+  fi
+  ```
+  Single-file scripts (no `install.sh`): run the equivalent `cli-hub register` inline once after copying the script into `~/.local/bin/`, with `--source-path` pointing at the installed copy and `--reinstall` re-running the copy command.
+- `uninstall.sh` ends with `cli-hub unregister <tool-name> --yes || true` (best-effort, same guard).
+- Fill every metadata field you know: `--version` (from `pyproject.toml`/`--version`), `--description` (README one-liner), `--group` (domain noun: `git`, `media`, `db`, `net`, `meta`, `misc`), `--source-path` (project dir), `--repo` (git origin URL, empty when none), `--config-path` (`~/.config/<tool>`), `--uninstall`/`--reinstall` (exact commands that reverse/redo the install).
+- The hub detects missing binaries itself (`cli-hub prune` lists entries with no binary on `PATH` and removes them only after user confirmation), so uninstall paths don't need hub cleanup beyond `unregister`.
+
 ### systemd-managed services
 
 Typically the Go tier. Default to a **user-scoped service** (`~/.config/systemd/user/`, `systemctl --user`) — system-wide only if explicitly requested or domain-required (pre-login start, privileged port, multi-user). `install` must also check/enable lingering (`loginctl show-user $USER --property=Linger`; if not on, `loginctl enable-linger $USER`) — without it a user service dies at logout, silently defeating the point. Ship dedicated lifecycle subcommands — `tool-name service install|uninstall|start|stop|restart|status|logs` — wrapping the unit file + `systemctl --user`/`journalctl --user` calls so the user never hand-writes them.
