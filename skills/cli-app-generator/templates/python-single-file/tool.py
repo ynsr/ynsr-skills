@@ -10,6 +10,7 @@ Deps: typer, rich, requests (extras per target API). Run with `uv run <tool> …
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -111,7 +112,39 @@ def _install_completion(shell: str, rcfile: Optional[Path] = None) -> tuple[Path
     tmp.write_text(updated, encoding="utf-8")
     tmp.replace(rc)
     return rc, True
-    return sorted(p.stem for p in PROFILES_DIR.glob("*.json")) if PROFILES_DIR.is_dir() else []
+
+
+# --- install receipt (stale-install guard; written by install.sh) ------------
+
+
+def _receipt_path() -> Path:
+    return Path.home() / ".local" / "share" / PROG / "install-receipt.json"
+
+
+def _source_hash(path: Path) -> str:
+    """SHA-256 over the script bytes, 12 hex chars (mirrors install.sh)."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+
+
+def _dev_staleness_warning(here: Path | None = None) -> str | None:
+    """Warn when running the source copy while the installed copy is stale.
+
+    install.sh copies this file to ~/.local/bin/<tool> and records its hash
+    in the receipt. Fires only when __file__ resolves outside the installed
+    locations (~/.local, site-packages) — the installed copy never warns
+    about itself — and the running file's hash differs from the receipt.
+    """
+    here = (here or Path(__file__)).resolve()
+    if "site-packages" in here.parts or (Path.home() / ".local") in here.parents:
+        return None
+    try:
+        receipt = json.loads(_receipt_path().read_text())
+    except (OSError, ValueError):
+        return None
+    if _source_hash(here) != receipt.get("source_hash"):
+        return (f"warning: running {PROG} from the source tree, but the installed "
+                "copy is stale — fix with: ./install.sh")
+    return None
 
 
 # --- HTTP session ------------------------------------------------------------
@@ -260,6 +293,9 @@ def completions_install(
 
 
 def main() -> None:
+    warning = _dev_staleness_warning()
+    if warning:
+        print(warning, file=sys.stderr)
     app()
 
 

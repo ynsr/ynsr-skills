@@ -53,7 +53,7 @@ tool-name/
 Install via `pipx install .` (or `--editable .` while iterating) — note this in the README.
 
 - `templates/python-project/` — full multi-file layout (solr-cli extract): profile store + httpx client with proxy normalization/retries + Typer CLI (`add_completion=False`; CSV default, `--json`, wizard with completion-install offer, interactive pick) + `completions show|install` (eval-line scripts, idempotent rc edit) + mock-transport pytest suite (16 tests incl. completion idempotency, offline). Verified: `uv sync && .venv/bin/python -m pytest` → all pass.
-- `templates/python-single-file/tool.py` — one-file layout (mbapi extract): constants → 0600 profile store → requests.Session with retries → domain functions → Typer commands (`add_completion=False`, `completions show|install` inline) → `main()`. Verified: runs under `uv run --with requests,typer,click`.
+- `templates/python-single-file/` — one-file layout (mbapi extract): constants → 0600 profile store → requests.Session with retries → domain functions → Typer commands (`add_completion=False`, `completions show|install` inline) → `main()`, plus the install story: `install.sh` (copy into `~/.local/bin/`, SHA-256 install receipt, `cli-hub register`) + `uninstall.sh` + inline dev-warning (running the source tree while the installed copy is stale → stderr hint to re-run `install.sh`). Verified: runs under `uv run --with requests,typer,click`.
 
 Bash and Go templates: not yet provided — follow the tiers above.
 
@@ -105,10 +105,11 @@ Every generated CLI must self-register with [cli-hub](https://github.com/ynsr/cl
   fi
   ```
   `UNINSTALL`/`REINSTALL` are set by `install.sh` to the backend actually used at install time — pipx → `pipx uninstall <tool>` / `pipx install --force $DIR`; uv → `uv tool uninstall <tool>` / `uv tool install --force $DIR`. Never hardcode pipx: the hub must re-run the backend that owns the install, or its uninstall/reinstall fights the other backend over `~/.local/bin`.
-  Single-file scripts (no `install.sh`): run the equivalent `cli-hub register` inline once after copying the script into `~/.local/bin/`, with `--source-path` pointing at the installed copy and `--reinstall` re-running the copy command.
+  Single-file scripts ship `templates/python-single-file/install.sh`/`uninstall.sh` (copy into `~/.local/bin/`, write the install receipt, register — `--source-path` points at the installed copy, `--uninstall`/`--reinstall` point at the scripts). When the user declines scripts, run the equivalent `cli-hub register` inline once after copying the script into `~/.local/bin/`.
 - `uninstall.sh` ends with `cli-hub unregister <tool-name> --yes || true` (best-effort, same guard).
 - Fill every metadata field you know: `--version` (from `pyproject.toml`/`--version`), `--description` (README one-liner), `--group` (domain noun: `git`, `media`, `db`, `net`, `meta`, `misc`), `--source-path` (project dir), `--repo` (git origin URL, empty when none), `--config-path` (`~/.config/<tool>`), `--uninstall`/`--reinstall` (exact commands that reverse/redo the install).
 - The hub detects missing binaries itself (`cli-hub prune` lists entries with no binary on `PATH` and removes them only after user confirmation), so uninstall paths don't need hub cleanup beyond `unregister`.
+- The hub can surface install health itself: `cli-hub doctor` runs `<tool> doctor` for every entry with an install receipt (JSON status preferred, bare-exit fallback), so keeping the `doctor` command's output contract (`status: ok|stale|missing`) makes the install self-monitoring.
 
 ### systemd-managed services
 
