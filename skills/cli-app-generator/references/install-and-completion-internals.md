@@ -78,6 +78,54 @@ tool completions show fish 2>/dev/null | source    # fish config (fish has no $(
 
 **Tests** (project tier, `tests/unit/test_completions.py`): `show` output non-empty per shell + unknown shell exits 2; install preserves existing rc content, creates `.bak`, second run is a byte-identical no-op; Click-level check that subcommands/flags resolve; value callback filters prefixes and returns `[]` on missing config; subprocess runtime-protocol regression test (see server pitfall above).
 
+## Example: `complete_names()` callback factory ([harness](https://github.com/ynsr/harness))
+
+[Harness](https://github.com/ynsr/harness) implements the paragraph above as one factory plus thin *source functions*. The factory owns the `[]`-on-failure rule, so sources stay plain — local state reads or `check=True` subprocess calls with a short `timeout=`.
+```python
+def complete_names(list_fn: Callable[[], object]) -> Callable:
+    """Build an ``autocompletion=`` callback over locally stored names.
+
+    ``list_fn`` returns an iterable of names (read LOCAL state only, never
+    the network); wrapped so ANY failure (missing dir, bad JSON) yields []
+    instead of breaking Tab.
+    """
+
+
+    def _complete(ctx, incomplete: str) -> list[str]:
+        try:
+            raw = list_fn()
+            names = list(raw.keys()) if isinstance(raw, dict) else list(raw)
+        except Exception:
+            return []
+        return sorted(n for n in names if n.startswith(incomplete))
+    return _complete
+
+
+def _cwd_git_branches() -> list[str]:
+    """Local branch names in the current working directory (offline, fast).
+
+    Raises on failure (not a repo, git missing) — ``complete_names`` turns
+    that into [] so Tab never breaks the shell.
+    """
+    out = subprocess.run(["git", "branch", "--format=%(refname:short)"],
+                         capture_output=True, text=True, timeout=2, check=True).stdout
+    return out.split()
+```
+
+`timeout=` on every subprocess source is mandatory: the env-var server fires per keystroke under ble.sh/zsh-autocomplete, so a hanging source freezes the shell. Sources may raise — a source outside a repo raises `CalledProcessError`, which the factory converts to `[]`.
+
+Wiring — one line per dynamic value, options just reference the callback:
+
+```python
+_complete_repos = _completions.complete_names(repos.repo_names)          # registered repo names (local state)
+_complete_branches = _completions.complete_names(_completions._cwd_git_branches)
+
+base: Optional[str] = typer.Option(None, "--base", autocompletion=_complete_branches,
+                                    help="Base branch (default: repo default).")
+```
+
+Test the callback directly (no Click machinery): prefix filter and sort order inside a git repo, `[]` outside one (`tests/test_cli.py::test_base_completion_lists_cwd_git_branches`), plus a live `_HARNESS_COMPLETE=complete_bash` protocol check.
+
 ## Template verification
 
 - `templates/python-project/`: `uv sync && .venv/bin/python -m pytest` — full suite, offline (httpx.MockTransport).
