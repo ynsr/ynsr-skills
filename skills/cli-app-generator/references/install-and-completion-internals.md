@@ -56,10 +56,12 @@ Both Python templates ship ONE completion system; construct the app with `add_co
 **`completions show <bash|zsh|fish>`** prints the init script for an eval line:
 
 ```bash
-eval "$(tool completions show bash)"   # ~/.bashrc
-eval "$(tool completions show zsh)"    # ~/.zshrc
-tool completions show fish | source    # fish config (fish has no $())
+eval "$(tool completions show bash 2>/dev/null)"   # ~/.bashrc
+eval "$(tool completions show zsh 2>/dev/null)"    # ~/.zshrc
+tool completions show fish 2>/dev/null | source    # fish config (fish has no $())
 ```
+
+**Typer ≥ 0.27 server pitfall** (shipped as a real regression in four tools, 2026-09): with `add_completion=False`, typer registers its completion classes only inside `completion_init()`, which the env-var server never calls — every Tab then dies with `Shell bash not supported.`, and ble.sh/zsh-autocomplete fire the server per keystroke, spamming the shell. Both templates ship `ensure_completion_classes()`; call it once in `main()` before `app()`. It registers via typer's own `typer._click` registry (a plain-click registry does not feed typer's server) and falls back to plain click on older typers. The `2>/dev/null` in the sourced line is mandatory for the same reason: a stale script/binary pair must degrade to "no candidates", never print into the shell (manual `completions show` still shows errors). Tests MUST include a subprocess runtime-protocol test (env vars set, `sys.argv = [prog, '']` before `main()` → candidates, rc 0, empty stderr); the complete-var name derives from `sys.argv[0]`'s basename, so an argv0 ≠ prog silently disables the server.
 
 **`completions install [shell] [--rcfile] [--yes]`** idempotently writes a marker block (`# >>> {prog} completions >>>` … `# <<<`) into the rc file:
 
@@ -74,7 +76,7 @@ tool completions show fish | source    # fish config (fish has no $())
 
 **README tradeoff** (document in generated READMEs): the eval line spawns Python on every new shell (~200–400ms for Typer apps) but never goes stale when commands change — the right default for this tier.
 
-**Tests** (project tier, `tests/unit/test_completions.py`): `show` output non-empty per shell + unknown shell exits 2; install preserves existing rc content, creates `.bak`, second run is a byte-identical no-op; Click-level check that subcommands/flags resolve; value callback filters prefixes and returns `[]` on missing config.
+**Tests** (project tier, `tests/unit/test_completions.py`): `show` output non-empty per shell + unknown shell exits 2; install preserves existing rc content, creates `.bak`, second run is a byte-identical no-op; Click-level check that subcommands/flags resolve; value callback filters prefixes and returns `[]` on missing config; subprocess runtime-protocol regression test (see server pitfall above).
 
 ## Template verification
 

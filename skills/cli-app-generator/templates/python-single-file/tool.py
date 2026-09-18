@@ -73,15 +73,43 @@ def _complete_profiles(ctx, incomplete: str) -> list[str]:
     return sorted(n for n in names if n.startswith(incomplete))
 
 
+def _ensure_completion_classes():
+    """Register Typer's shell completion classes; return shell_completion.
+
+    typer >= 0.27 vendors click but only registers its bash/zsh/fish
+    completion classes inside ``completion_init()``, which the env-var
+    completion server (``_<PROG>_COMPLETE=complete_<shell>``) never
+    calls — without this every Tab dies with "Shell bash not supported."
+    (ble.sh fires the server on every keystroke). Call once at startup
+    (``main()``) and before rendering a script. Idempotent; falls back
+    to a plain click install (classes self-register there).
+    """
+    try:
+        from typer._click import shell_completion
+    except ImportError:  # older typer: plain click
+        import click.shell_completion as shell_completion
+        return shell_completion
+    if not shell_completion.get_completion_class("bash"):
+        from typer._completion_classes import completion_init
+        completion_init()
+    return shell_completion
+
+
 def _detect_shell() -> Optional[str]:
     shell = os.path.basename(os.environ.get("SHELL", "")).strip()
     return shell if shell in SUPPORTED_SHELLS else None
 
 
 def _eval_line(shell: str) -> str:
+    """The rc line the user sources. fish uses () instead of $().
+
+    Server stderr is discarded inside the sourced line: a failing
+    completion server must never print into the shell (ble.sh/zsh fire
+    it on every keystroke). Manual `completions show` still shows errors.
+    """
     if shell == "fish":
-        return f"{PROG} completions show fish | source"
-    return f'eval "$({PROG} completions show {shell})"'
+        return f"{PROG} completions show fish 2>/dev/null | source"
+    return f'eval "$({PROG} completions show {shell} 2>/dev/null)"'
 
 
 def _install_snippet(shell: str) -> str:
@@ -259,7 +287,7 @@ def completions_show(shell: str = typer.Argument(..., help="Shell to print the i
       <tool> completions show fish | source    # fish config
     """
     import typer.main as _typer_main
-    import click.shell_completion as _sc
+    _sc = _ensure_completion_classes()
 
     if shell not in SUPPORTED_SHELLS:
         _fail(f"unsupported shell {shell!r} (choose from: {', '.join(SUPPORTED_SHELLS)})", EXIT_USAGE)
@@ -298,6 +326,7 @@ def main() -> None:
     warning = _dev_staleness_warning()
     if warning:
         print(warning, file=sys.stderr)
+    _ensure_completion_classes()  # typer 0.27: runtime server needs registered classes
     app()
 
 

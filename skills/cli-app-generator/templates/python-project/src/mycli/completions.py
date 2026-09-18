@@ -30,6 +30,7 @@ __all__ = [
     "START_MARKER",
     "END_MARKER",
     "detect_shell",
+    "ensure_completion_classes",
     "eval_line",
     "install_snippet",
     "install_completion",
@@ -49,6 +50,29 @@ START_MARKER = "# >>> {prog} completions >>>"
 END_MARKER = "# <<< {prog} completions <<<"
 
 
+def ensure_completion_classes():
+    """Register Typer's shell completion classes; return shell_completion.
+
+    typer >= 0.27 vendors click but only registers its bash/zsh/fish
+    completion classes inside ``completion_init()``, which the env-var
+    completion server (``_MYCLI_COMPLETE=complete_<shell>``) never
+    calls — without this every Tab dies with "Shell bash not
+    supported." (ble.sh fires the server on every keystroke). Call once
+    at CLI startup (``main()``) and before rendering a script.
+    Idempotent; falls back to a plain click install (classes
+    self-register there).
+    """
+    try:
+        from typer._click import shell_completion
+    except ImportError:  # older typer: plain click
+        import click.shell_completion as shell_completion
+        return shell_completion
+    if not shell_completion.get_completion_class("bash"):
+        from typer._completion_classes import completion_init
+        completion_init()
+    return shell_completion
+
+
 def detect_shell() -> Optional[str]:
     """Best-effort shell name from $SHELL; None if unknown/unsupported."""
     shell = os.path.basename(os.environ.get("SHELL", "")).strip()
@@ -56,10 +80,15 @@ def detect_shell() -> Optional[str]:
 
 
 def eval_line(prog: str, shell: str) -> str:
-    """The rc line the user sources. fish uses () instead of $()."""
+    """The rc line the user sources. fish uses () instead of $().
+
+    Server stderr is discarded inside the sourced line: a failing
+    completion server must never print into the shell (ble.sh/zsh fire
+    it on every keystroke). Manual `completions show` still shows errors.
+    """
     if shell == "fish":
-        return f"{prog} completions show fish | source"
-    return f'eval "$({prog} completions show {shell})"'
+        return f"{prog} completions show fish 2>/dev/null | source"
+    return f'eval "$({prog} completions show {shell} 2>/dev/null)"'
 
 
 def install_snippet(prog: str, shell: str) -> str:
@@ -136,13 +165,15 @@ def get_completion_script(prog: str, shell: str, click_cmd=None) -> str:
     pass it explicitly so this module never imports your app (no cycles).
     Raises ValueError on unsupported shell.
     """
-    import click.shell_completion
+    shell_completion = ensure_completion_classes()
 
     if shell not in SUPPORTED_SHELLS:
         raise ValueError(f"unsupported shell {shell!r} (choose from: {', '.join(SUPPORTED_SHELLS)})")
     if click_cmd is None:
         raise ValueError("click_cmd is required (pass typer.main.get_command(app))")
-    cls = click.shell_completion.get_completion_class(shell)
+    cls = shell_completion.get_completion_class(shell)
+    if cls is None:  # defensive: registration covers every supported shell
+        raise ValueError(f"unsupported shell {shell!r} (choose from: {', '.join(SUPPORTED_SHELLS)})")
     complete_var = f"_{prog.upper().replace('-', '_')}_COMPLETE"
     return cls(click_cmd, {}, prog, complete_var).source()
 

@@ -294,6 +294,7 @@ def doctor() -> None:
 
 
 def main() -> None:
+    _completions.ensure_completion_classes()  # typer 0.27: runtime server needs registered classes
     app()
 
 

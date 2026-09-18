@@ -1,5 +1,9 @@
 """Completion tests: show output, idempotent install, value completion."""
 
+import os
+import subprocess
+import sys
+
 import click
 import typer.main
 from typer.testing import CliRunner
@@ -33,7 +37,7 @@ def test_install_idempotent(tmp_path, monkeypatch):
     first = runner.invoke(app, ["completions", "install", "bash", "--rcfile", str(rc), "--yes"])
     assert first.exit_code == 0
     body = rc.read_text()
-    assert 'eval "$(mycli completions show bash)"' in body
+    assert 'eval "$(mycli completions show bash 2>/dev/null)"' in body
     assert "export FOO=1" in body  # existing content preserved
     assert (tmp_path / ".bashrc.bak").is_file()
     second = runner.invoke(app, ["completions", "install", "bash", "--rcfile", str(rc), "--yes"])
@@ -74,3 +78,34 @@ def test_value_completion_never_raises(isolated_config):
 def test_detect_shell_rejects_unknown(monkeypatch):
     monkeypatch.setenv("SHELL", "/bin/tcsh")
     assert comp.detect_shell() is None
+
+
+def test_eval_line_discards_server_stderr():
+    """The sourced eval line must never let the server print into the shell."""
+    assert "2>/dev/null" in comp.eval_line("mycli", "bash")
+    assert "2>/dev/null" in comp.eval_line("mycli", "fish")
+
+
+def test_runtime_completion_protocol_lists_subcommands(isolated_config):
+    """Regression: the env-var completion server must work in a fresh process.
+
+    typer >= 0.27 only registers its shell completion classes while
+    building an app with add_completion=True; with add_completion=False
+    the `_MYCLI_COMPLETE=complete_bash` server dies with "Shell bash not
+    supported." on every keystroke (ble.sh fires it constantly).
+    cli.main() now registers the classes; this exercises the real
+    subprocess path and asserts stderr stays empty.
+    """
+    env = {
+        **os.environ,
+        "_MYCLI_COMPLETE": "complete_bash",
+        "COMP_WORDS": "mycli l",
+        "COMP_CWORD": "1",
+    }
+    r = subprocess.run(
+        [sys.executable, "-c", "import sys; sys.argv = ['mycli', '']; from mycli.cli import main; main()"],
+        capture_output=True, text=True, env=env,
+    )
+    assert r.returncode == 0, r.stderr
+    assert "list" in r.stdout.split()
+    assert r.stderr == "", r.stderr
