@@ -23,6 +23,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Dict, List
 from review_platform import ReviewTarget, default_reviews_base, parse_review_url, run_cli
 
 

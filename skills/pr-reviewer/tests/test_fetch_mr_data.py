@@ -50,3 +50,16 @@ def test_fetch_rejects_github_url(monkeypatch):
     with pytest.raises(SystemExit) as exc:
         fetch_mr_data.main()
     assert exc.value.code == 1
+
+
+def test_module_annotations_resolve_eagerly():
+    """Regression: all typing names (List/Dict) must be imported so that
+    function annotations resolve even under eager/lazy evaluation."""
+    import fetch_mr_data
+    import typing
+    for name in ("run_glab", "fetch_mr_metadata", "fetch_mr_diff",
+                 "fetch_mr_notes", "fetch_mr_commits", "extract_ticket_numbers",
+                 "setup_mr_review_dir", "clone_mr_branch", "save_data",
+                 "build_summary", "main"):
+        fn = getattr(fetch_mr_data, name)
+        assert isinstance(typing.get_type_hints(fn), dict)

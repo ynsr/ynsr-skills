@@ -77,3 +77,53 @@ def test_post_note_wraps_cli_errors(monkeypatch):
     monkeypatch.setattr("add_mr_note.subprocess.run", fake_run)
     with pytest.raises(RuntimeError, match="401 Unauthorized"):
         post_note(["glab"])
+
+DIFF = """--- a/app.py
++++ b/app.py
+@@ -10,4 +10,6 @@
+ context
+-removed
+ context2
++added1
++added2
+--- a/new.sh
++++ b/new.sh
+@@ -0,0 +1,3 @@
++one
++two
++three
+"""
+
+
+def test_parse_diff_line_ranges_new_and_modified_files():
+    from add_mr_note import parse_diff_line_ranges
+    ranges = parse_diff_line_ranges(DIFF)
+    assert ranges["app.py"]["old"] == [(10, 12)]
+    assert ranges["app.py"]["new"] == [(10, 13)]
+    assert ranges["new.sh"]["old"] == []
+    assert ranges["new.sh"]["new"] == [(1, 3)]
+
+
+def test_parse_supports_git_prefixed_and_bare_paths():
+    from add_mr_note import parse_diff_line_ranges
+    bare = DIFF.replace("--- a/", "--- ").replace("+++ b/", "+++ ")
+    assert set(parse_diff_line_ranges(bare)) == {"app.py", "new.sh"}
+
+
+def test_validate_accepts_hunk_lines_and_rejects_file_lines():
+    from add_mr_note import validate_diff_position
+    validate_diff_position(DIFF, "app.py", line="10:12")
+    validate_diff_position(DIFF, "app.py", old_line=11)
+    with pytest.raises(ValueError, match="outside every hunk"):
+        validate_diff_position(DIFF, "app.py", line="500:506")
+    with pytest.raises(ValueError, match="not in the MR diff"):
+        validate_diff_position(DIFF, "missing.py", line="1")
+
+
+def test_validate_rejects_bad_range_syntax():
+    from add_mr_note import validate_diff_position
+    with pytest.raises(ValueError, match="expected N or N:M"):
+        validate_diff_position(DIFF, "app.py", line="abc")
+    with pytest.raises(ValueError, match="must not exceed"):
+        validate_diff_position(DIFF, "app.py", line="12:10")
+

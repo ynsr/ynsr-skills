@@ -13,7 +13,9 @@ Positioning follows glab semantics, NOT GitHub's:
 
 Long bodies: pass --body-file (piped to glab stdin) to avoid shell quoting
 pitfalls with backticks/$/backslashes. --unique skips posting when the same
-body already exists (idempotent re-runs).
+body already exists (idempotent re-runs). --validate checks --file/--line
+against `glab mr diff` first: GitLab only accepts lines inside a diff hunk,
+so a worktree file line number is rejected with `Line N not found in diff`.
 
 Usage:
     python add_mr_note.py <project-url> <iid> -m "body" [--file PATH] [--line 42]
@@ -22,9 +24,9 @@ Usage:
 """
 
 import argparse
+import re
 import subprocess
 import sys
-
 
 def build_command(project_url: str, iid: str, body: str | None, *,
                   file: str | None = None, line: str | None = None,
@@ -64,6 +66,132 @@ def build_command(project_url: str, iid: str, body: str | None, *,
         cmd += ['-m', body]
     return cmd
 
+_HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+
+
+def parse_diff_line_ranges(diff_text: str) -> dict:
+    """Map each new-file path in a unified diff to its (old, new) line ranges.
+
+    Returns {path: {\"old\": [(start, end)], \"new\": [(start, end)]}} where each
+    (start, end) spans one hunk, inclusive. Context-only lines count for both
+    sides; `-` lines only for old, `+` lines only for new.
+    """
+    files: dict = {}
+    path = None
+    old_ln = new_ln = 0
+    hunk_old: list | None = None
+    hunk_new: list | None = None
+
+    def close_hunk() -> None:
+        if path is not None and hunk_old is not None and hunk_new is not None:
+            entry = files.setdefault(path, {"old": [], "new": []})
+            if hunk_old[0] <= hunk_old[1]:
+                entry["old"].append((hunk_old[0], hunk_old[1]))
+            if hunk_new[0] <= hunk_new[1]:
+                entry["new"].append((hunk_new[0], hunk_new[1]))
+
+    def norm(side: str, prefix: str) -> str | None:
+        side = side.strip()
+        if side in ("", "/dev/null"):
+            return None
+        if side == prefix:
+            return None
+        if side.startswith(prefix + "/"):
+            return side[len(prefix) + 1:]
+        return side
+
+    for raw in diff_text.splitlines():
+        if raw.startswith("--- "):
+            close_hunk()
+            hunk_old = hunk_new = None
+            path = norm(raw[4:], "a")
+            continue
+        if raw.startswith("+++ "):
+            new_side = norm(raw[4:], "b")
+            path = new_side if new_side is not None else None
+            continue
+        m = _HUNK_RE.match(raw)
+        if m:
+            close_hunk()
+            old_ln = int(m.group(1))
+            new_ln = int(m.group(3))
+            hunk_old = [old_ln, old_ln - 1]
+            hunk_new = [new_ln, new_ln - 1]
+            continue
+        if hunk_old is None or path is None:
+            continue
+        if raw.startswith("+") and not raw.startswith("+++"):
+            hunk_new[1] = new_ln
+            new_ln += 1
+        elif raw.startswith("-") and not raw.startswith("---"):
+            hunk_old[1] = old_ln
+            old_ln += 1
+        else:
+            # Context line (or "\ No newline" marker): advance both cursors.
+            if raw.startswith("\\"):
+                continue
+            hunk_old[1] = old_ln
+            hunk_new[1] = new_ln
+            old_ln += 1
+            new_ln += 1
+    close_hunk()
+    return files
+
+
+def validate_diff_position(diff_text: str, file: str, line: str | None = None,
+                           old_line: int | None = None) -> None:
+    """Pre-validate an inline position against `glab mr diff` output.
+
+    Raises ValueError with a clear message (valid ranges included) when the
+    file is absent from the diff or the line/range falls outside every hunk.
+    GitLab only accepts positions inside a diff hunk — NOT arbitrary file
+    line numbers — so this catches the mistake client-side before glab's
+    terse `Line N not found in diff` error.
+    """
+    ranges = parse_diff_line_ranges(diff_text)
+    if file not in ranges:
+        known = ", ".join(sorted(ranges)) or "(empty diff)"
+        raise ValueError(f"{file!r} is not in the MR diff. Files in diff: {known}")
+
+    def fmt(side_ranges: list) -> str:
+        return ", ".join(f"{s}-{e}" if s != e else f"{s}" for s, e in side_ranges)
+
+    if old_line is not None:
+        covered = any(s <= old_line <= e for s, e in ranges[file]["old"])
+        if not covered:
+            raise ValueError(
+                f"--old-line {old_line} is outside every hunk of {file!r} "
+                f"(removed-side lines in diff: {fmt(ranges[file]['old']) or 'none'}). "
+                "Use a removed (-) line inside a @@ hunk, or drop --old-line for a file-level note.")
+        return
+    if line is not None:
+        try:
+            lo_s, _, hi_s = line.partition(":")
+            lo, hi = int(lo_s), int(hi_s) if hi_s else int(lo_s)
+        except ValueError:
+            raise ValueError(f"--line {line!r}: expected N or N:M with integer lines")
+        if lo > hi:
+            raise ValueError(f"--line {line!r}: start must not exceed end")
+        side = ranges[file]["new"]
+        if not any(s <= lo and hi <= e for s, e in side):
+            raise ValueError(
+                f"--line {line} is outside every hunk of {file!r} "
+                f"(added-side lines in diff: {fmt(side) or 'none'}). "
+                "Use a line inside a @@ hunk, or drop --line for a file-level note.")
+
+
+def fetch_mr_diff(project_url: str, iid: str) -> str:
+    """Fetch the MR unified diff via glab (used for --validate position checks)."""
+    try:
+        result = subprocess.run(
+            ["glab", "mr", "diff", "-R", project_url, iid],
+            capture_output=True, text=True, check=True)
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to fetch MR diff for validation: {e.stderr.strip() or e}")
+    except FileNotFoundError:
+        raise RuntimeError("glab CLI not found. See https://gitlab.com/gitlab-org/cli")
+
 
 def post_note(cmd: list, body_from_stdin: str | None = None) -> str:
     """Run the glab command; body_from_stdin pipes long bodies via stdin."""
@@ -94,6 +222,8 @@ def main() -> None:
     parser.add_argument('--resolvable', default='true', choices=['true', 'false'],
                         help='false = non-resolvable note (automation/status only)')
     parser.add_argument('--dry-run', action='store_true', help='Print the glab command, do not post')
+    parser.add_argument('--validate', action='store_true',
+                        help='Check --file/--line/--old-line against `glab mr diff` before posting')
     args = parser.parse_args()
 
     try:
@@ -106,6 +236,9 @@ def main() -> None:
                             file=args.file, line=args.line, old_line=args.old_line,
                             reply=args.reply, unique=args.unique,
                             resolvable=args.resolvable == 'true')
+        if args.validate and args.file is not None and (args.line is not None or args.old_line is not None):
+            validate_diff_position(fetch_mr_diff(args.project_url, args.iid),
+                                   args.file, line=args.line, old_line=args.old_line)
         if args.dry_run:
             shown = [c if not c.startswith('-') or len(c) < 40 else c[:40] + '...' for c in cmd]
             print('DRY-RUN:', ' '.join(f'"{c}"' if ' ' in c else c for c in shown))
