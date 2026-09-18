@@ -23,7 +23,7 @@ __version__ = "0.1.0"
 
 EXIT_OK, EXIT_GENERAL, EXIT_USAGE, EXIT_NETWORK = 0, 1, 2, 3
 
-_complete_profiles = _completions.complete_profile_names(list_profiles)
+_complete_profiles = _completions.complete_names(list_profiles)
 
 app = typer.Typer(
     name="mycli",

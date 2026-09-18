@@ -65,12 +65,27 @@ SUPPORTED_SHELLS = ("bash", "zsh", "fish")
 _RC_FILES = {"bash": "~/.bashrc", "zsh": "~/.zshrc", "fish": "~/.config/fish/config.fish"}
 
 
-def _complete_profiles(ctx, incomplete: str) -> list[str]:
-    try:
-        names = list_profiles()
-    except Exception:
-        return []
-    return sorted(n for n in names if n.startswith(incomplete))
+def _complete_names(list_fn):
+    """Build an ``autocompletion=`` callback over locally stored names.
+
+    ``list_fn`` returns the names to offer (a local-state read — dict- or
+    list-returning). Called ONCE per Tab; wrapped so ANY failure yields []
+    instead of breaking Tab. The factory owns the failure rule, so sources
+    stay plain — including ``check=True`` subprocess calls with a short
+    ``timeout=`` (the completion server fires per keystroke).
+    """
+    def _complete(ctx, incomplete: str) -> list[str]:
+        try:
+            raw = list_fn()
+            names = list(raw.keys()) if isinstance(raw, dict) else list(raw)
+        except Exception:
+            return []
+        return sorted(n for n in names if n.startswith(incomplete))
+
+    return _complete
+
+
+_complete_profiles = _complete_names(list_profiles)
 
 
 def _ensure_completion_classes():

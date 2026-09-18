@@ -75,6 +75,13 @@ def test_value_completion_never_raises(isolated_config):
     assert cli_mod._complete_profiles(None, "") == []
 
 
+def test_value_completion_factory_swallows_source_errors():
+    # sources may raise (subprocess failed, bad config) — Tab must never break
+    def boom():
+        raise RuntimeError("offline")
+    assert comp.complete_names(boom)(None, "") == []
+
+
 def test_detect_shell_rejects_unknown(monkeypatch):
     monkeypatch.setenv("SHELL", "/bin/tcsh")
     assert comp.detect_shell() is None

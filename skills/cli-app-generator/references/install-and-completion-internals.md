@@ -72,7 +72,7 @@ tool completions show fish 2>/dev/null | source    # fish config (fish has no $(
 - After a change print `installed <prog> completion for <shell> in <rc>` plus `restart your shell or run: source <rc>` to stderr; a no-op prints `already installed in <rc>`.
 - The zsh block also ensures `compinit`.
 
-**Ordering is never hand-coded.** Click resolves the cursor position: subcommand names and `-`/`--` flags complete automatically. The only custom code is one `autocompletion=` callback per *dynamic value* (profile/resource names, like `git branch` cycling branches): filter on the `incomplete` prefix, read local state only (never network), never raise — return `[]` on any failure so Tab never breaks. Template helpers: `completions.complete_profile_names(list_profiles)` / `_complete_profiles`.
+**Ordering is never hand-coded.** Click resolves the cursor position: subcommand names and `-`/`--` flags complete automatically. The only custom code is one `autocompletion=` callback per *dynamic value* (profile/resource names, like `git branch` cycling branches): filter on the `incomplete` prefix, read local state only (never network), never raise — return `[]` on any failure so Tab never breaks. Template helper: the `complete_names(list_fn)` factory (see the example below); generated CLIs wire `_complete_profiles = completions.complete_names(list_profiles)`.
 
 **README tradeoff** (document in generated READMEs): the eval line spawns Python on every new shell (~200–400ms for Typer apps) but never goes stale when commands change — the right default for this tier.
 
@@ -80,7 +80,8 @@ tool completions show fish 2>/dev/null | source    # fish config (fish has no $(
 
 ## Example: `complete_names()` callback factory ([harness](https://github.com/ynsr/harness))
 
-[Harness](https://github.com/ynsr/harness) implements the paragraph above as one factory plus thin *source functions*. The factory owns the `[]`-on-failure rule, so sources stay plain — local state reads or `check=True` subprocess calls with a short `timeout=`.
+[Harness](https://github.com/ynsr/harness) implements the paragraph above as one factory plus thin *source functions*. The factory owns the `[]`-on-failure rule, so sources stay plain — local state reads or `check=True` subprocess calls with a short `timeout=`. Adding a dynamic value is another thin source plus one wiring line — the factory never changes.
+
 ```python
 def complete_names(list_fn: Callable[[], object]) -> Callable:
     """Build an ``autocompletion=`` callback over locally stored names.
@@ -110,21 +111,42 @@ def _cwd_git_branches() -> list[str]:
     out = subprocess.run(["git", "branch", "--format=%(refname:short)"],
                          capture_output=True, text=True, timeout=2, check=True).stdout
     return out.split()
+
+
+def _remote_git_branches() -> list[str]:
+    """Branches on the origin mirror (offline: reads local remote-tracking refs).
+
+    Strips the ``origin/`` prefix so candidates match plain branch names;
+    ``origin/HEAD`` and other remotes are excluded. Raises on failure like
+    the local source.
+    """
+    out = subprocess.run(["git", "branch", "-r", "--format=%(refname:short)"],
+                         capture_output=True, text=True, timeout=2, check=True).stdout
+    return [b[len("origin/"):] for b in out.split()
+            if b.startswith("origin/") and not b.startswith("origin/HEAD")]
+
+
+def _base_branch_candidates() -> list[str]:
+    """Local branches plus remote-only branches (deduped, plain names)."""
+    names = set(_cwd_git_branches())
+    names.update(_remote_git_branches())
+    return sorted(names)
 ```
 
-`timeout=` on every subprocess source is mandatory: the env-var server fires per keystroke under ble.sh/zsh-autocomplete, so a hanging source freezes the shell. Sources may raise — a source outside a repo raises `CalledProcessError`, which the factory converts to `[]`.
+`timeout=` on every subprocess source is mandatory: the env-var server fires per keystroke under ble.sh/zsh-autocomplete, so a hanging source freezes the shell. Sources may raise — `_remote_git_branches` outside a repo raises `CalledProcessError`, which the factory converts to `[]`. Merging sources (`_base_branch_candidates` = local ∪ remote-only, deduped) is just another source function; candidates keep plain branch names so they match what `--base` accepts.
 
 Wiring — one line per dynamic value, options just reference the callback:
 
 ```python
 _complete_repos = _completions.complete_names(repos.repo_names)          # registered repo names (local state)
-_complete_branches = _completions.complete_names(_completions._cwd_git_branches)
+_complete_branches = _completions.complete_names(_completions._base_branch_candidates)
 
 base: Optional[str] = typer.Option(None, "--base", autocompletion=_complete_branches,
                                     help="Base branch (default: repo default).")
 ```
 
-Test the callback directly (no Click machinery): prefix filter and sort order inside a git repo, `[]` outside one (`tests/test_cli.py::test_base_completion_lists_cwd_git_branches`), plus a live `_HARNESS_COMPLETE=complete_bash` protocol check.
+Test the callback directly (no Click machinery): prefix filter and sort order inside a git repo, `[]` outside one (`tests/test_cli.py::test_base_completion_lists_cwd_git_branches`), plus a live `_HARNESS_COMPLETE=complete_bash` protocol check. Offer remote-only candidates only when the tool can *act* on them — harness pairs them with automatic local tracking branches (`gitwt._ensure_local_branch`), not a `--base` that fails at runtime.
+
 
 ## Template verification
 

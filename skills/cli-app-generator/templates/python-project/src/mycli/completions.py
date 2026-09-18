@@ -34,7 +34,7 @@ __all__ = [
     "eval_line",
     "install_snippet",
     "install_completion",
-    "complete_profile_names",
+    "complete_names",
     "get_completion_script",
 ]
 
@@ -135,22 +135,28 @@ def install_completion(prog: str, shell: str, rcfile: Optional[Path] = None) -> 
     return rc, True
 
 
-def complete_profile_names(list_fn: Callable[[], object]) -> Callable:
-    """Build an ``autocompletion=`` callback over locally saved profile names.
+def complete_names(list_fn: Callable[[], object]) -> Callable:
+    """Build an ``autocompletion=`` callback over locally stored names.
 
-    ``list_fn`` is your ``list_profiles`` (dict- or list-returning); wrapped
-    so ANY failure (missing dir, bad JSON) yields [] instead of breaking Tab.
+    ``list_fn`` returns the names to offer — usually ``list_profiles`` or any
+    local-state read (dict- or list-returning). It is called ONCE per Tab and
+    wrapped so ANY failure (missing dir, bad JSON, non-zero subprocess)
+    yields [] instead of breaking Tab. The factory owns the failure rule, so
+    sources stay plain — including ``check=True`` subprocess calls with a
+    short ``timeout=`` (the completion server fires per keystroke).
     Usage::
 
-        @app.command("list")
-        def list_cmd(resource: str = typer.Argument(..., autocompletion=complete_profiles)): ...
+        _complete_profiles = complete_names(list_profiles)
+        _complete_branches = complete_names(_cwd_git_branches)  # see references/
 
-        complete_profiles = complete_profile_names(list_profiles)
+        @app.command("list")
+        def list_cmd(resource: str = typer.Argument(..., autocompletion=_complete_profiles)): ...
     """
 
     def _complete(ctx, incomplete: str) -> list[str]:
         try:
-            names = list(list_fn().keys()) if isinstance(list_fn(), dict) else list(list_fn())
+            raw = list_fn()
+            names = list(raw.keys()) if isinstance(raw, dict) else list(raw)
         except Exception:
             return []
         return sorted(n for n in names if n.startswith(incomplete))
