@@ -1,0 +1,11 @@
+{
+  "name": "inquirerpy",
+  "version": "0.3.4",
+  "license_expression": null,
+  "license_field": "MIT",
+  "requires_python": ">=3.7,<4.0",
+  "uploaded": "2022-06-27T23:11:17.723944Z",
+  "classifiers": [
+    "License :: OSI Approved :: MIT License"
+  ]
+}

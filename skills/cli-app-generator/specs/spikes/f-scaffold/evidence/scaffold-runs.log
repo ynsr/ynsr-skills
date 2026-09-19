@@ -1,0 +1,95 @@
+=== shellcheck on scaffold.sh ===
+[rtk: No such file or directory (os error 2)]
+shellcheck exit=127
+=== run 1 (profiles, agent) ===
+README.md
+src/demo.py
+AGENT_PROFILE.md
+scaffold: done: dest-sh-1
+=== run 2 (identical) ===
+README.md
+src/demo.py
+AGENT_PROFILE.md
+scaffold: done: dest-sh-2
+=== diff -r dest-sh-1 dest-sh-2 ===
+RESULT: IDENTICAL
+=== run 3 no profiles ===
+README.md
+src/demo.py
+scaffold: done: dest-sh-3
+=== diff dest-sh-1 vs dest-sh-3 (no profiles) ===
+Only in dest-sh-1: AGENT_PROFILE.md
+diff exit=1
+=== tree ===
+dest-sh-1
+dest-sh-1/AGENT_PROFILE.md
+dest-sh-1/README.md
+dest-sh-1/src
+dest-sh-1/src/demo.py
+=== README ===
+# demo
+
+Generated CLI skeleton — tier: python-project, audience: agent.
+
+## Run
+
+python3 src/demo.py
+
+## Audience notes
+
+- stdout is data-only; logs and prompts go to stderr.
+- exit codes: 0 ok | 1 usage | 2 runtime | 3 upstream | 4 internal.
+=== modes ===
+664 dest-sh-1/README.md
+755 dest-sh-1/src/demo.py
+=== run 4 bash-tool tier + stdout data-only check ===
+README.md
+bin/mytool
+stdout-only exit=0
+dest-sh-4/README.md
+dest-sh-4/bin/mytool
+=== bash-tool main runs? ===
+demo ready (tier=python-project, audience=agent)
+=== usage errors (exit codes) ===
+scaffold: error: unknown tier: bogus
+scaffold.sh — deterministic offline project scaffolder (spike F)
+
+usage: scaffold.sh --tier TIER --audience AUD --name NAME --dest DIR [flags]
+
+params:
+  --tier TIER       python-project | go-cli | bash-tool
+  --audience AUD    human | agent
+  --name NAME       CLI name, single token
+  --dest DIR        destination directory (must not exist)
+flags:
+  --profiles        include agent-profile extras (default: off)
+  --no-profiles     explicitly exclude agent-profile extras
+  --dry-run         log planned actions to stderr, write nothing
+  -q, --quiet       suppress stderr log lines
+  -h, --help        show this help
+  --version         print version
+bogus-tier exit=1
+scaffold: error: --tier is required (python-project|go-cli|bash-tool)
+scaffold.sh — deterministic offline project scaffolder (spike F)
+
+usage: scaffold.sh --tier TIER --audience AUD --name NAME --dest DIR [flags]
+
+params:
+  --tier TIER       python-project | go-cli | bash-tool
+  --audience AUD    human | agent
+  --name NAME       CLI name, single token
+  --dest DIR        destination directory (must not exist)
+flags:
+  --profiles        include agent-profile extras (default: off)
+  --no-profiles     explicitly exclude agent-profile extras
+  --dry-run         log planned actions to stderr, write nothing
+  -q, --quiet       suppress stderr log lines
+  -h, --help        show this help
+  --version         print version
+missing-params exit=1
+=== dry-run ===
+scaffold: dry-run for /tmp/never-exists (nothing written)
+scaffold: dry-run: create README.md
+scaffold: dry-run: create src/g.py
+scaffold: dry-run: create go.mod
+scaffold: done: /tmp/never-exists

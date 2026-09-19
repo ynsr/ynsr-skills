@@ -1,0 +1,17 @@
+### workaround server outputs (appwk/toolw = 3-line completion_init patch)
+$ COMP_WORDS="toolw i" COMP_CWORD=1 _TOOLW_COMPLETE=complete_bash .venv-bug/bin/python toolw i  [typer 0.27.0]
+items
+exit=0
+$ COMP_WORDS="toolw i" COMP_CWORD=1 _TOOLW_COMPLETE=complete_bash .venv/bin/python toolw i  [typer 0.27.2]
+items
+exit=0
+$ COMP_WORDS="toolw items --pick a" COMP_CWORD=3 _TOOLW_COMPLETE=complete_bash .venv/bin/python toolw items --pick a
+alpha
+exit=0
+$ zsh instruction: _TOOLW_COMPLETE=complete_zsh _TYPER_COMPLETE_ARGS="toolw i" .venv/bin/python toolw i
+_arguments '*: :(("items":"List items, optionally picking one."))'
+exit=0
+$ fish instruction: _TOOLW_COMPLETE=complete_fish _TYPER_COMPLETE_FISH_ACTION=get-args _TYPER_COMPLETE_ARGS= .venv/bin/python toolw
+items	List items, optionally picking one.
+show	Show a single key.
+exit=0

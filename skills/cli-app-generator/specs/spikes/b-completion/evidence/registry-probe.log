@@ -1,0 +1,3 @@
+### root-cause probe: _available_shells registry state after get_command()
+after get_command(add_completion=False): {}
+after explicit completion_init(): ['bash', 'fish', 'powershell', 'pwsh', 'zsh']

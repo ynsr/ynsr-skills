@@ -1,0 +1,33 @@
+### symlink probe (PEP 723 + bin drop) — 2026-09-20T00:13:57+03:30
+
+$ mkdir -p bin && ln -sf $D/single/tool.py bin/spikec-single
+
+$ which spikec-single
+/home/bs/projects/personal/ynsr-skills/.worktrees/cli-app-generator-v2/skills/cli-app-generator/specs/spikes/c-install/bin/spikec-single
+
+$ cd /tmp && spikec-single  # 1st run (dep resolution on stderr)
+{'tool': 'spikec-single', 'version': '0.1.0', 'mode': 'symlink'}
+
+$ cd ~ && spikec-single  # warm
+{'tool': 'spikec-single', 'version': '0.1.0', 'mode': 'symlink'}
+
+$ $D/bin/spikec-single 2>/dev/null  # stdout purity
+{'tool': 'spikec-single', 'version': '0.1.0', 'mode': 'symlink'}
+
+$ time $D/bin/spikec-single  # warm timing
+
+real	0m0.098s
+user	0m0.050s
+sys	0m0.047s
+
+real	0m0.093s
+user	0m0.044s
+sys	0m0.040s
+
+### dangling-symlink edge — move target away, no reinstall:
+$ mv $D/single/tool.py /tmp/tool.py.moved && spikec-single
+error: command not found: spikec-single
+exit=127
+
+$ mv /tmp/tool.py.moved $D/single/tool.py  # restore, works again
+{'tool': 'spikec-single', 'version': '0.1.0', 'mode': 'symlink'}

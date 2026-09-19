@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# @meta version 0.1.0
+# @meta describe Toy tool for spike D
+
+# @cmd Read a JSON file and print a table
+# @arg file!          JSON file to read
+show() {
+    local json
+    json=$(cat "$argc_file")
+    printf 'NAME\tVALUE\n'
+    printf '%s\n' "$json" | jq -r 'to_entries[] | "\(.key)\t\(.value)"'
+}
+
+# @cmd Delete a file
+# @arg file!          File to delete
+# @option --output[table|json|csv|tsv] <FORMAT>   Output format
+# @flag --dry-run     Print what would be deleted
+# @flag -y --yes      Skip confirmation
+delete() {
+    if [[ -n ${argc_dry_run:-} ]]; then
+        echo "Would delete: $argc_file" >&2
+        exit 0
+    fi
+    if [[ -z ${argc_yes:-} ]]; then
+        echo "Refusing to delete without --yes (non-interactive contract)" >&2
+        exit 3
+    fi
+    rm -f "$argc_file" && echo "Deleted: $argc_file" >&2
+}
+
+eval "$(argc --argc-eval "$0" "$@")"

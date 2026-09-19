@@ -1,0 +1,11 @@
+Script started on 2026-09-20 00:02:27+03:30 [COMMAND="./demo-huh" <not executed on terminal>]
+
+[1;38;2;90;86;224mPick an output format[m 
+1. table
+2. json
+3. csv
+4. tsv
+Enter a number between 1 and 4: 
+table
+
+Script done on 2026-09-20 00:02:27+03:30 [COMMAND_EXIT_CODE="0"]

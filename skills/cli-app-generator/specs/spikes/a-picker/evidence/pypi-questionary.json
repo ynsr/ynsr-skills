@@ -1,0 +1,11 @@
+{
+  "name": "questionary",
+  "version": "2.1.1",
+  "license_expression": null,
+  "license_field": "MIT",
+  "requires_python": ">=3.9",
+  "uploaded": "2025-08-28T19:00:19.560027Z",
+  "classifiers": [
+    "License :: OSI Approved :: MIT License"
+  ]
+}

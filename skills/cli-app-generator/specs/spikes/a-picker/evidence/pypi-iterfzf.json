@@ -1,0 +1,9 @@
+{
+  "name": "iterfzf",
+  "version": "1.9.0.67.0",
+  "license_expression": "GPL-3.0-or-later",
+  "license_field": null,
+  "requires_python": ">=3.8",
+  "uploaded": "2026-01-25T05:29:54.765646Z",
+  "classifiers": []
+}

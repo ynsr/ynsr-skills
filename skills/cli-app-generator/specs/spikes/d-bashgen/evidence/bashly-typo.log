@@ -1,0 +1,22 @@
+(a) invalid KEY: sed required:→require:
+ Bashly::ConfigurationError 
+root.commands[0].args[0] contains invalid options: require
+exit=1
+
+(c) silent rename, value typo in command name: sed name: show→name: shwo
+exit=0
+bashly.yml
+completions_command.sh
+delete_command.sh
+lib
+shwo_command.sh
+29:  printf "  %s   Read a JSON file and print a table\n" "shwo       "
+51:toytool_shwo_usage() {
+52:  printf "toytool shwo - Read a JSON file and print a table\n\n"
+
+(c2) silent rename, flag long typo: sed long: --output→long: --outpuy
+exit=0
+66:    printf "  %s\n" "--outpuy FORMAT"
+553:      --outpuy)
+557:          args['--outpuy']="$2"
+0

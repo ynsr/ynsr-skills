@@ -1,0 +1,36 @@
+(b) unknown tag: sed @flag→@flg on delete --dry-run
+Error: @flg(line 19) is unknown tag
+exit=1
+
+(d) malformed payload: @option --output[FORMAT] <table|json|csv|tsv> (choices in wrong slot)
+18:# @option --output[FORMAT] <table|json|csv|tsv>   Output format
+Delete a file
+
+USAGE: toytool delete [OPTIONS] <FILE>
+
+ARGS:
+  <FILE>  File to delete
+
+OPTIONS:
+      --output <TABLE|JSON|CSV|TSV>  Output format [possible values: FORMAT]
+      --dry-run                      Print what would be deleted
+  -y, --yes                          Skip confirmation
+  -h, --help                         Print help
+
+exit=0
+
+restored: @option line + help:
+18:# @option --output[table|json|csv|tsv] <FORMAT>   Output format
+Delete a file
+
+USAGE: toytool delete [OPTIONS] <FILE>
+
+ARGS:
+  <FILE>  File to delete
+
+OPTIONS:
+      --output <FORMAT>  Output format [possible values: table, json, csv, tsv]
+      --dry-run          Print what would be deleted
+  -y, --yes              Skip confirmation
+  -h, --help             Print help
+

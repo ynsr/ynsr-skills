@@ -1,0 +1,6 @@
+### Tab latency: full completion-server process, 10 runs (env COMP_WORDS set, patched app, typer 0.27.2)
+runs: 10  best: 0.05 s median: 0.06s worst: 0.06s
+--- importtime summary (python -X importtime -c "import app.__main__") ---
+import time:       134 |      37633 | app.__main__
+import time:       120 |      37439 |   typer
+import time:       391 |      20902 |     typer.main

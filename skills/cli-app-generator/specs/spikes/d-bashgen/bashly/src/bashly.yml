@@ -1,0 +1,34 @@
+name: toytool
+help: Toy tool for spike D
+version: 0.1.0
+
+commands:
+- name: show
+  help: Read a JSON file and print a table
+  args:
+  - name: file
+    help: JSON file to read
+    required: true
+  flags:
+  - long: --output
+    arg: FORMAT
+    help: Output format
+    default: table
+    allowed: [table, json, csv, tsv]
+  examples:
+  - toytool show data.json
+
+- name: delete
+  help: Delete a file
+  args:
+  - name: file
+    help: File to delete
+    required: true
+  flags:
+  - long: --dry-run
+    help: Print what would be deleted
+  - long: --yes
+    short: -y
+    help: Skip confirmation
+- name: completions
+  help: Generate bash completion script

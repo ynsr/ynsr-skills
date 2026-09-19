@@ -1,0 +1,10 @@
+### repro: typer 0.27.2 (.venv, python 3.14.6)
+$ SPIKE_ITEMS_DIR=/tmp/spikehome/.config/spike-items _TOOL_COMPLETE=complete_bash .venv/bin/python tool i
+Shell bash not supported.
+exit=1
+$ SPIKE_ITEMS_DIR=/tmp/spikehome/.config/spike-items _TOOL_COMPLETE=complete_bash .venv/bin/python tool items --pick a
+Shell bash not supported.
+exit=1
+$ SPIKE_ITEMS_DIR=/tmp/spikehome/.config/spike-items _TOOL_COMPLETE=complete_bash .venv/bin/python tool items ''
+Shell bash not supported.
+exit=1

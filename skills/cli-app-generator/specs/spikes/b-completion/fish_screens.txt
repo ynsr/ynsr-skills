@@ -1,0 +1,48 @@
+===== A: 'tool ' Tab -> subcommand menu =====
+ 0| +q696e646e+q71756572792d6f732d6e616d65warning: fish could not read response to Primary Device Attribute query after wait
+ 1| ing for 10 seconds. This is often due to a missing feature in your terminal. See 'help terminal-compatibility' or 'man f
+ 2| ish-terminal-compatibility'. This fish process will no longer wait for outstanding queries, which disables some optional
+ 3|  features.
+ 4| Welcome to fish, the friendly interactive shell
+ 5| Type help for instructions on how to use fish
+ 6| bs@bs-IdeaPad-Gaming-3-15IAH7 /h/b/p/p/y/.w/c/s/c/s/s/b-completion (cli-app-generator-v2)> tool items
+ 7| items  (List items, optionally picking one.)  show  (Show a single key.)
+
+===== B: Tab#2 =====
+ 0| +q696e646e+q71756572792d6f732d6e616d65warning: fish could not read response to Primary Device Attribute query after wait
+ 1| ing for 10 seconds. This is often due to a missing feature in your terminal. See 'help terminal-compatibility' or 'man f
+ 2| ish-terminal-compatibility'. This fish process will no longer wait for outstanding queries, which disables some optional
+ 3|  features.
+ 4| Welcome to fish, the friendly interactive shell
+ 5| Type help for instructions on how to use fish
+ 6| bs@bs-IdeaPad-Gaming-3-15IAH7 /h/b/p/p/y/.w/c/s/c/s/s/b-completion (cli-app-generator-v2)> tool items --pick
+ 7| items  (List items, optionally picking one.)  show  (Show a single key.)
+
+===== C: Ctrl-U 'tool items --pick ' Tab (dynamic) =====
+ 0| +q696e646e+q71756572792d6f732d6e616d65warning: fish could not read response to Primary Device Attribute query after wait
+ 1| ing for 10 seconds. This is often due to a missing feature in your terminal. See 'help terminal-compatibility' or 'man f
+ 2| ish-terminal-compatibility'. This fish process will no longer wait for outstanding queries, which disables some optional
+ 3|  features.
+ 4| Welcome to fish, the friendly interactive shell
+ 5| Type help for instructions on how to use fish
+ 6| bs@bs-IdeaPad-Gaming-3-15IAH7 /h/b/p/p/y/.w/c/s/c/s/s/b-completion (cli-app-generator-v2)> tool items --pick
+ 7| alpha  beta  gamma
+
+===== D: Ctrl-U 'tool show a' Tab (single match) =====
+ 0| +q696e646e+q71756572792d6f732d6e616d65warning: fish could not read response to Primary Device Attribute query after wait
+ 1| ing for 10 seconds. This is often due to a missing feature in your terminal. See 'help terminal-compatibility' or 'man f
+ 2| ish-terminal-compatibility'. This fish process will no longer wait for outstanding queries, which disables some optional
+ 3|  features.
+ 4| Welcome to fish, the friendly interactive shell
+ 5| Type help for instructions on how to use fish
+ 6| bs@bs-IdeaPad-Gaming-3-15IAH7 /h/b/p/p/y/.w/c/s/c/s/s/b-completion (cli-app-generator-v2)> tool show alpha
+
+===== E: Ctrl-U 'tool i' Tab (prefix) =====
+ 0| +q696e646e+q71756572792d6f732d6e616d65warning: fish could not read response to Primary Device Attribute query after wait
+ 1| ing for 10 seconds. This is often due to a missing feature in your terminal. See 'help terminal-compatibility' or 'man f
+ 2| ish-terminal-compatibility'. This fish process will no longer wait for outstanding queries, which disables some optional
+ 3|  features.
+ 4| Welcome to fish, the friendly interactive shell
+ 5| Type help for instructions on how to use fish
+ 6| bs@bs-IdeaPad-Gaming-3-15IAH7 /h/b/p/p/y/.w/c/s/c/s/s/b-completion (cli-app-generator-v2)> tool items --pick
+

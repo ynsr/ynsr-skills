@@ -1,0 +1,22 @@
+== bashly (static, bash-only; completely-generated, no external calls) ==
+$ source bashly/toytool_completions.bash; COMP_WORDS=(toytool sh) ...
+→ [show]
+$ ... COMP_WORDS=(toytool delete --dr) ...
+→ [--dry-run]
+
+== argc (dynamic; completer forks `argc --argc-compgen` per Tab) ==
+$ source argc/comp.bash; COMP_WORDS=(toytool-argc sh) ...
+→ [show ]
+$ argc --argc-compgen bash "" toytool-argc delete --dr   (direct compgen)
+--dry-run 
+$ argc --argc-compgen bash "" toytool-argc delete --output ""   (choice values)
+table 
+json 
+csv 
+tsv 
+$ wc -l comp.bash comp.zsh comp.fish (zsh passes `zsh -n`; fish not runtime-exercised)
+wc: comp.bash: No such file or directory
+wc: comp.zsh: No such file or directory
+wc: comp.fish: No such file or directory
+0 total
+ok

@@ -1,0 +1,1 @@
+"""Spike C demo package."""

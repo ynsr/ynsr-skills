@@ -1,0 +1,1 @@
+GH prompt-toolkit/python-prompt-toolkit pushed=2026-07-26T20:59:35Z stars=10576 open_issues=721 archived=false license=BSD-3-Clause

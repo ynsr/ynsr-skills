@@ -1,0 +1,3 @@
+$ sed required:→require: in bashly.yml; bashly generate
+error: command not found: bashly
+exit=127

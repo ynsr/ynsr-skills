@@ -1,0 +1,56 @@
+===== A: 'tool ' Tab (subcommands) =====
+ 0| $ tool
+ 1| items show
+
+===== B: ESC dismiss menu =====
+ 0| $ tool
+ 1| items show
+
+===== C: Enter (empty line -> fresh prompt) =====
+ 0| $ tool
+ 2| -- MULTILINE -- (RET or C-m: insert a newline, C-j: run)
+
+===== D: 'tool items --pick ' Tab (dynamic values) =====
+ 0| $ tool
+ 1| tool items --pick
+ 2| items show
+
+===== E: ESC, Enter (fresh prompt) =====
+ 0| $ tool
+ 1| tool items --pick
+ 3| items show
+
+===== F: 'tool show a' Tab (single dynamic match) =====
+ 0| $ tool
+ 1| tool items --pick
+ 2| tool show alpha
+ 3| items show
+
+===== G: ESC, Enter (fresh prompt) =====
+ 0| $ tool
+ 1| tool items --pick
+ 2| tool show a
+ 4| items show
+
+===== H: 'tool i' Tab (prefix insert) =====
+ 0| $ tool
+ 1| tool items --pick
+ 2| tool show a
+ 3| tool items
+ 4| items show
+
+===== I: ESC, Enter (fresh prompt) =====
+ 0| $ tool
+ 1| tool items --pick
+ 2| tool show a
+ 3| tool i
+ 5| items show
+
+===== J: 'tool s' Tab (prefix for show) =====
+ 0| $ tool
+ 1| tool items --pick
+ 2| tool show a
+ 3| tool i
+ 4| tool show
+ 5| items show
+

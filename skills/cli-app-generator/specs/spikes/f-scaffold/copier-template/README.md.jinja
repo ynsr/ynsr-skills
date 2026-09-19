@@ -1,0 +1,22 @@
+# {{ name }}
+
+Generated CLI skeleton — tier: {{ tier }}, audience: {{ audience }}.
+
+## Run
+
+{% if tier == "python-project" -%}
+    python3 src/{{ name }}.py
+{%- elif tier == "go-cli" -%}
+    go run .
+{%- else -%}
+    ./bin/{{ name }}
+{%- endif %}
+
+## Audience notes
+
+{% if audience == "agent" -%}
+- stdout is data-only; logs and prompts go to stderr.
+- exit codes: 0 ok | 1 usage | 2 runtime | 3 upstream | 4 internal.
+{%- else -%}
+- Human-friendly output by default; pass --json for agent consumption.
+{%- endif %}

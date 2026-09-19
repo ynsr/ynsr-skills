@@ -1,0 +1,22 @@
+=== PARITY: diff -r dest-a (copier) dest-sh-1 (scaffold) ===
+RESULT: IDENTICAL — copier and scaffold.sh produce byte-equal trees
+=== copier --pretend (dry-run) probe ===
+Copying from template version None
+[32m[1m    create[39m[0m  README.md
+[32m[1m    create[39m[0m  src/x.py
+
+
+ls: cannot access 'dest-pretend': No such file or directory
+=== bash-tool skeleton runs ===
+755 dest-sh-4/bin/mytool
+664 dest-sh-4/README.md
+mytool ready (tier=bash-tool, audience=human)
+=== LOC: maintainer surfaces ===
+187 scaffold.sh
+  22 copier-template/README.md.jinja
+  29 copier-template/copier.yml
+   4 copier-template/{% if profiles %}AGENT_PROFILE.md{% endif %}.jinja
+  11 copier-template/src/{{ name }}.py.jinja
+  66 total
+=== scaffold-parts (unused reference parts) ===
+Σ 26

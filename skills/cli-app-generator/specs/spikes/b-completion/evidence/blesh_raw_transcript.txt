@@ -1,0 +1,29 @@
+### STEP ble.sh attach settle
+--- keystrokes: b''
+--- transcript tail ---
+ble/term.sh: updating tput cache for TERM=xterm-256color... ble/term.sh: updating tput cache for TERM=xterm-256color... done
+[?25l[>c7[1;2r[2;1H[1B[6n[;r[2;1H[1B[6n[r8[?2004h7[8m[K[▽][6n[K[▶][6n[K[龼][6n[K[鿄][6n[K[ㆸ][6n[K[ힰ][6n[K[゙][6n[K[鿍][6n[K[🤻][6n[K[ㄮ][6n[K[ㄯ][6n[K[𖿢][6n[K[㋿][6n[K[ㆻ][6n[K[鿽][6n[K[𛄲][6n[K[⿼][6n[K[㇤][6n[K(B[m8[?25h]666;vte.shell.postexec=0\]7;file://bs-IdeaPad-Gaming-3-15IAH7/home/bs/projects/personal/ynsr-skills/.worktrees/cli-app-generator-v2/skills/cli-app-generator/specs/spikes/b-completion\]0;bs@bs-IdeaPad-Gaming-3-15IAH7:/home/bs/projects/personal/ynsr-skills/.worktrees/cli-app-generator-v2/skills/cli-app-generator/specs/spikes/b-completion\]666;vte.shell.precmd!\[?25l(B[m[2K$ [?25h[?25l(B[m
+(B[m[1L[2K(B[m[2Kble.sh: generating "/home/bs/.local/share/blesh/cache.d/1000/decode.cmap.gdict.xterm-256color.dump"...[?25h[?25l(B[m[1A[100D[?25h[?25l(B[m[1B[2Kble/lib/init-cmap.sh: updating key sequences...[?25h[?25l(B[m[1A[45D[?25h[?25l(B[m[1B[2Kble/lib/init-cmap.sh: updating key sequences... done[?25h[?25l(B[m[1A[50D[?25h[?25l(B[m[1B[2Kble.sh: updating cache/keymap.emacs...[?25h[?25l(B[m[1A[36D[?25h[?25l(B[m[1B[2Kble.sh: updating cache/keymap.emacs... done[?25h[?25l(B[m[1A[41D[?25h[?25l(B[m[1B[2Kble.sh: updating binders...[?25h[?25l(B[m[2Kble.sh: updating binders... done[?25h[?25l(B[m[5D[?25h[?25l(B[m[1A[2K$ (B[m[1B[2K[1M(B[m[1A[2C[?25h### STEP A: 'tool ' Tab#1
+--- keystrokes: b'tool \t'
+--- transcript tail ---
+[?25l(B[m
+(B[m[1L[2K(B[m[2K[0mitems(B[m [0mshow(B[m[?25h[?25l(B[m[1A[8D[?25h[?25l[0;32m[0;32mtool[0m (B[m[K[?25h### STEP B: Tab#2
+--- keystrokes: b'\t'
+--- transcript tail ---
+[?25l(B[m[1B[0;7mitems(B[m(B[m[1A[2C(B[m[5D[0;32m[0;32mtool[0m [0;38;5;27;48;5;254mitems(B[m[K[?25h### STEP C: Ctrl-U; 'tool items --pick ' Tab#1
+--- keystrokes: b'\x15tool items --pick \t'
+--- transcript tail ---
+[?25l(B[m[1B[2K[0malpha(B[m [0mbeta(B[m  [0mgamma(B[m[?25h[?25l(B[m[1A[5D[?25h[?25l(B[m[10D[0;32m[0;32mtool[0m items [0;36m--pick[0m (B[m[K[?25h### STEP D: Tab#2
+--- keystrokes: b'\t'
+--- transcript tail ---
+[?25l(B[m[1B[0;7malpha(B[m(B[m[1A[15C(B[m[7D[0;36m[0;36m--pick[0m [0;38;5;27;48;5;254malpha(B[m[K[?25h### STEP E: Ctrl-U; 'tool show a' Tab
+--- keystrokes: b'\x15tool show a\t'
+--- transcript tail ---
+[?25l(B[m[23D[0;32m[0;32mtool[0m show alpha (B[m[K(B[m[1B[2K[1M(B[m[1A[18C[?25h### STEP F: Ctrl-U; 'tool i' Tab
+--- keystrokes: b'\x15tool i\t'
+--- transcript tail ---
+[?25l(B[m[16D[0;32m[0;32mtool[0m items (B[m[K[?25h[?25l(B[m[6D[0mitems [0;38;5;238;48;5;254m--pick (B[m[K(B[m[7D[?25h### STEP G: Ctrl-U; 'tool items ' Tab (arg completion at subcommand)
+--- keystrokes: b'\x15tool items \t'
+--- transcript tail ---
+[?25l(B[m
+(B[m[1L[2K(B[m[2K[0malpha(B[m [0mbeta(B[m  [0mgamma(B[m[?25h[?25l(B[m[1A[4D[?25h[?25l(B[m[11D[0;32m[0;32mtool[0m items (B[m[K[?25h[?25l(B[m[6D[0mitems [0;38;5;238;48;5;254m--pick (B[m[K(B[m[7D[?25h### FINAL DRAIN

@@ -1,0 +1,4 @@
+time=2026-09-20T00:05:57.433+03:30 level=INFO msg="starting flaky fetch" url=http://127.0.0.1:38409
+time=2026-09-20T00:05:57.434+03:30 level=DEBUG msg="performing request" method=GET url=http://127.0.0.1:38409
+time=2026-09-20T00:05:57.434+03:30 level=DEBUG msg="retrying request" request="GET http://127.0.0.1:38409 (status: 500)" timeout=10ms remaining=2
+time=2026-09-20T00:05:57.444+03:30 level=DEBUG msg="retrying request" request="GET http://127.0.0.1:38409 (status: 500)" timeout=20ms remaining=1

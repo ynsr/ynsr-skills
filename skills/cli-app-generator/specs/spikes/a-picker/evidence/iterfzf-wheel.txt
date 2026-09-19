@@ -1,0 +1,41 @@
+iterfzf installed package contents (site-packages/iterfzf/), ls -la:
+total 4372
+drwxrwxr-x  3 bs bs    4096 Sep 20 00:19 .
+drwxrwxr-x 11 bs bs    4096 Sep 19 23:59 ..
+-rw-rw-r--  2 bs bs    5289 Sep 19 23:57 __init__.py
+drwxrwxr-x  2 bs bs    4096 Sep 20 00:19 __pycache__
+-rwxrwxr-x  2 bs bs 4411544 Sep 19 23:57 fzf
+-rw-rw-r--  2 bs bs   32568 Sep 19 23:57 fzf-0.67.0-release.json
+-rw-rw-r--  2 bs bs    5292 Sep 19 23:57 test_iterfzf.py
+
+fzf vendored binary version file:
+{"url":"https://api.github.com/repos/junegunn/fzf/releases/262751421","assets_url":"https://api.github.com/repos/junegunn/fzf/releases/262751421/assets","upload_url":"https://uploads.github.com/repos/
+
+dist-info METADATA license lines:
+Name: iterfzf
+Version: 1.9.0.67.0
+License-Expression: GPL-3.0-or-later
+License-File: LICENSE
+Versioning scheme
+Version 1.9.0.67.0
+Version 1.8.0.62.0
+Version 1.7.0.62.0
+Version 1.6.0.60.3
+Version 1.5.0.60.2
+Version 1.4.0.60.2
+Version 1.4.0.54.3
+Version 1.4.0.51.0
+Version 1.3.0.51.0
+Version 1.2.0.46.1
+Version 1.1.0.44.0
+Version 1.0.0.42.0
+Version 0.5.0.20.0
+Version 0.4.0.17.3
+Version 0.4.0.17.1
+Version 0.3.0.17.1
+Version 0.2.0.17.0
+Version 0.2.0.16.11
+Version 0.2.0.16.10
+Version 0.2.0.16.8
+Version 0.2.0.16.7
+Version 0.1.0.16.7

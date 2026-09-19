@@ -1,0 +1,77 @@
+=== run 1: profiles=true ===
+
+Copying from template version None
+[32m[1m    create[39m[0m  README.md
+[32m[1m    create[39m[0m  AGENT_PROFILE.md
+[32m[1m    create[39m[0m  src
+[32m[1m    create[39m[0m  src/demo.py
+
+
+=== run 2: identical data ===
+
+Copying from template version None
+[32m[1m    create[39m[0m  README.md
+[32m[1m    create[39m[0m  AGENT_PROFILE.md
+[32m[1m    create[39m[0m  src
+[32m[1m    create[39m[0m  src/demo.py
+
+
+=== diff -r dest-a dest-b ===
+RESULT: IDENTICAL
+=== run 3: profiles=false ===
+
+Copying from template version None
+[32m[1m    create[39m[0m  README.md
+[32m[1m    create[39m[0m  src
+[32m[1m    create[39m[0m  src/demo.py
+
+
+=== diff -r dest-a(dest=true) dest-c(false) ===
+Only in dest-a: AGENT_PROFILE.md
+diff exit=1
+=== dest-a tree ===
+dest-a
+dest-a/AGENT_PROFILE.md
+dest-a/README.md
+dest-a/src
+dest-a/src/demo.py
+=== AGENT_PROFILE.md bytes ===
+# Agent profile extras$
+$
+stdout: data only. stderr: logs and prompts.$
+exit codes: 0 ok | 1 usage | 2 runtime | 3 upstream | 4 internal.$
+=== non-TTY probe: no -f/--defaults, stdin closed ===
+[32m[1m    create[39m[0m  src/demo.py
+
+
+probe exit=0
+
+=== appended (report fix 3): offline version probe ===
+$ uvx --offline copier --version
+copier 9.18.2
+exit=0
+=== appended (report fix 4): missing-data non-TTY probe (must fail, not hang) ===
+$ timeout 15 uvx copier copy ./copier-template /tmp/f-scaffold-probe-fix -d tier=python-project < /dev/null
+Warning: Input is not a terminal (fd=0).
+Interactive session required: Use `--defaults` and/or `--data`/`--data-file`
+exit=1
+(probe dest under /tmp; no scratch mutation)
+=== appended (report fix 1 backing): dest trees incl. dotfiles ===
+$ ls -a dest-a dest-b
+dest-a:
+.
+..
+AGENT_PROFILE.md
+README.md
+src
+
+dest-b:
+.
+..
+AGENT_PROFILE.md
+README.md
+src
+=== appended (report fix 2 backing): mode bits ===
+$ stat -c "%a %n" dest-a/src/demo.py dest-sh-1/src/demo.py
+775 dest-a/src/demo.py
+755 dest-sh-1/src/demo.py

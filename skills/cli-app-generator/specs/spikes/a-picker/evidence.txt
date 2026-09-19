@@ -1,0 +1,157 @@
+=== t1 probe_questionary.py ===
+[t1] probe_questionary.py
+[t1] pty-capture bytes (stderr//tty side): 300
+[t1] child status: exit 0
+[t1] STDOUT FILE (13 bytes): b'RESULT:alpha\n'
+[t1] stdout contains ANSI escapes: False
+[t1] VERDICT stdout-pure: True
+=== t2 probe_questionary.py ===
+[t2] probe_questionary.py
+[t2] rc=0 wall=0.20s (124=timeout hung)
+[t2] stdout: b'RESULT:None\n'
+[t2] stderr tail: b''
+[t2] VERDICT non-tty-None-no-hang: True
+=== t3 probe_questionary.py ===
+[t3] probe_questionary.py
+[t3] after SIGINT child: exit 0
+[t3] pty tail: b'?7h\x1b[0m\x1b[?7l\x1b[28D\x1b[0m\x1b[J\x1b[0m?\x1b[0;1m Pick one: \x1b[0m(Use arrow keys)                                                   \r\x1b[79C \r\x1b[0m\r\r\n\x1b[J\x1b[?7h\x1b[0m\x1b[?2004l\x1b[?12l\x1b[?25h\r\nCancelled by user\r\n\r\nRESULT:None\r\n'
+[t3] stty -a: speed 38400 baud; rows 24; columns 80; line = 0;
+intr = ^C; quit = ^\; erase = ^?; kill = ^U; eof = ^D; eol = <undef>;
+eol2 = <undef>; swtch = <undef>; start = 
+[t3] icanon restored: True; echo restored: True
+[t3] cursor-show emitted after hide: True
+[t3] alt-screen exit emitted (full-screen apps): False
+[t3] VERDICT ctrl-c-restores-terminal: True
+=== t1 probe_prompt_toolkit.py ===
+[t1] probe_prompt_toolkit.py
+[t1] pty-capture bytes (stderr//tty side): 2904
+[t1] child status: TIMEOUT/HUNG (killed)
+[t1] STDOUT FILE (0 bytes): b''
+[t1] stdout contains ANSI escapes: False
+[t1] VERDICT stdout-pure: False
+=== t2 probe_prompt_toolkit.py ===
+[t2] probe_prompt_toolkit.py
+[t2] rc=0 wall=0.20s (124=timeout hung)
+[t2] stdout: b'RESULT:None\n'
+[t2] stderr tail: b''
+[t2] VERDICT non-tty-None-no-hang: True
+=== t3 probe_prompt_toolkit.py ===
+[t3] probe_prompt_toolkit.py
+[t3] after SIGINT child: TIMEOUT/HUNG (killed)
+[t3] pty tail: b'                                                                     \r\x1b[79C \x1b[0m\r\r\n\x1b[0m                                                                               \r\x1b[79C \r\x1b[14A\x1b[19C\x1b[0m\x1b[?12l\x1b[?25h'
+[t3] stty -a: speed 38400 baud; rows 24; columns 80; line = 0;
+intr = ^C; quit = ^\; erase = ^?; kill = ^U; eof = ^D; eol = <undef>;
+eol2 = <undef>; swtch = <undef>; start = 
+[t3] icanon restored: False; echo restored: False
+[t3] cursor-show emitted after hide: True
+[t3] alt-screen exit emitted (full-screen apps): False
+[t3] VERDICT ctrl-c-restores-terminal: False
+=== t1 probe_prompt_toolkit_custom.py ===
+[t1] probe_prompt_toolkit_custom.py
+[t1] pty-capture bytes (stderr//tty side): 1186
+[t1] child status: exit 0
+[t1] STDOUT FILE (13 bytes): b'RESULT:alpha\n'
+[t1] stdout contains ANSI escapes: False
+[t1] VERDICT stdout-pure: True
+=== t2 probe_prompt_toolkit_custom.py ===
+[t2] probe_prompt_toolkit_custom.py
+[t2] rc=0 wall=0.10s (124=timeout hung)
+[t2] stdout: b'RESULT:None\n'
+[t2] stderr tail: b''
+[t2] VERDICT non-tty-None-no-hang: True
+=== t3 probe_prompt_toolkit_custom.py ===
+[t3] probe_prompt_toolkit_custom.py
+[t3] after SIGINT child: exit 0
+[t3] pty tail: b'                                 \r\x1b[79C\x1b[0m \x1b[0m\r\r\n\x1b[0m( ) omega                                                                      \r\x1b[79C\x1b[0;1mv\r\x1b[0m\r\r\n\x1b[J\x1b[?7h\x1b[0m\x1b[?12l\x1b[?25h\x1b[?2004lRESULT:None\r\n'
+[t3] stty -a: speed 38400 baud; rows 24; columns 80; line = 0;
+intr = ^C; quit = ^\; erase = ^?; kill = ^U; eof = ^D; eol = <undef>;
+eol2 = <undef>; swtch = <undef>; start = 
+[t3] icanon restored: True; echo restored: True
+[t3] cursor-show emitted after hide: True
+[t3] alt-screen exit emitted (full-screen apps): False
+[t3] VERDICT ctrl-c-restores-terminal: True
+=== t1 probe_iterfzf.py ===
+[t1] probe_iterfzf.py
+[t1] pty-capture bytes (stderr//tty side): 5794
+[t1] child status: exit 0
+[t1] STDOUT FILE (13 bytes): b'RESULT:alpha\n'
+[t1] stdout contains ANSI escapes: False
+[t1] VERDICT stdout-pure: True
+=== t2 probe_iterfzf.py ===
+[t2] probe_iterfzf.py
+[t2] rc=0 wall=0.10s (124=timeout hung)
+[t2] stdout: b'RESULT:None\n'
+[t2] stderr tail: b'inappropriate ioctl for device\n'
+[t2] VERDICT non-tty-None-no-hang: True
+=== t3 probe_iterfzf.py ===
+[t3] probe_iterfzf.py
+[t3] after SIGINT child: KILLED by signal 2
+[t3] pty tail: b'uxbrew/opt/python@3.14/lib/python3.14/subprocess.py", line 2042, in _try_wait\r\n    (pid, sts) = os.waitpid(self.pid, wait_flags)\r\n                 ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^\r\nKeyboardInterrupt\r\n'
+[t3] stty -a: speed 38400 baud; rows 24; columns 80; line = 0;
+intr = ^C; quit = ^\; erase = ^?; kill = ^U; eof = ^D; eol = <undef>;
+eol2 = <undef>; swtch = <undef>; start = 
+[t3] icanon restored: True; echo restored: True
+[t3] cursor-show emitted after hide: True
+[t3] alt-screen exit emitted (full-screen apps): True
+[t3] VERDICT ctrl-c-restores-terminal: True
+=== UNWRAPPED questionary .ask() native defects ===
+[t1] probe_unwrapped.py
+[t1] pty-capture bytes (stderr//tty side): 0
+[t1] child status: TIMEOUT/HUNG (killed)
+[t1] STDOUT FILE (111 bytes): b'? Pick one: (Use arrow keys)\r\n \xc2\xbb alpha\r\n   beta\r\n   gamma\r\n   delta\r\n   omega\r\n\r\n                             '
+[t1] stdout contains ANSI escapes: False
+[t1] VERDICT stdout-pure: False
+[t2] probe_unwrapped.py
+[t2] rc=1 wall=0.20s (124=timeout hung)
+[t2] stdout: b''
+[t2] stderr tail: b' line 141, in __enter__\n    return next(self.gen)\n  File "/home/bs/projects/personal/ynsr-skills/.worktrees/cli-app-generator-v2/skills/cli-app-generator/specs/spikes/a-picker/.venv/lib/python3.14/site-packages/prompt_toolkit/input/vt100.py", line 180, in _attached_input\n    raise EOFError\nEOFError\n'
+[t2] VERDICT non-tty-None-no-hang: False
+[t3] probe_unwrapped.py
+[t3] after SIGINT child: exit 0
+[t3] pty tail: b'?7h\x1b[0m\x1b[?7l\x1b[28D\x1b[0m\x1b[J\x1b[0m?\x1b[0;1m Pick one: \x1b[0m(Use arrow keys)                                                   \r\x1b[79C \r\x1b[0m\r\r\n\x1b[J\x1b[?7h\x1b[0m\x1b[?2004l\x1b[?12l\x1b[?25h\r\nCancelled by user\r\n\r\nRESULT:None\r\n'
+[t3] stty -a: speed 38400 baud; rows 24; columns 80; line = 0;
+intr = ^C; quit = ^\; erase = ^?; kill = ^U; eof = ^D; eol = <undef>;
+eol2 = <undef>; swtch = <undef>; start = 
+[t3] icanon restored: True; echo restored: True
+[t3] cursor-show emitted after hide: True
+[t3] alt-screen exit emitted (full-screen apps): False
+[t3] VERDICT ctrl-c-restores-terminal: True
+=== prompt_toolkit eager-construction trap (app built outside session) ===
+[t1] probe_pt_eager_bug.py
+[t1] pty-capture bytes (stderr//tty side): 0
+[t1] child status: TIMEOUT/HUNG (killed)
+[t1] STDOUT FILE (825 bytes): b'Pick one:\r\n(*) alpha                                                                      \r                                                                               ^\r\n( ) beta                                                                       \r                                                                                \r\n( ) gamma                                                                      \r                                                                                \r\n( ) delta                                                                      \r                                                                                \r\n( ) omega                                                                      \r                                                                               v\r\n\r\n  '
+[t1] stdout contains ANSI escapes: False
+[t1] VERDICT stdout-pure: False
+=== NO_COLOR=1 TERM=dumb (questionary) ===
+[t1] probe_questionary.py
+[t1] pty-capture bytes (stderr//tty side): 300
+[t1] child status: exit 0
+[t1] STDOUT FILE (13 bytes): b'RESULT:alpha\n'
+[t1] stdout contains ANSI escapes: False
+[t1] VERDICT stdout-pure: True
+[t3] probe_questionary.py
+[t3] after SIGINT child: exit 0
+[t3] pty tail: b'?7h\x1b[0m\x1b[?7l\x1b[28D\x1b[0m\x1b[J\x1b[0m?\x1b[0;1m Pick one: \x1b[0m(Use arrow keys)                                                   \r\x1b[79C \r\x1b[0m\r\r\n\x1b[J\x1b[?7h\x1b[0m\x1b[?2004l\x1b[?12l\x1b[?25h\r\nCancelled by user\r\n\r\nRESULT:None\r\n'
+[t3] stty -a: speed 38400 baud; rows 24; columns 80; line = 0;
+intr = ^C; quit = ^\; erase = ^?; kill = ^U; eof = ^D; eol = <undef>;
+eol2 = <undef>; swtch = <undef>; start = 
+[t3] icanon restored: True; echo restored: True
+[t3] cursor-show emitted after hide: True
+[t3] alt-screen exit emitted (full-screen apps): False
+[t3] VERDICT ctrl-c-restores-terminal: True
+=== X1 radiolist_dialog Tab-then-Enter (probe_prompt_toolkit.py) ===
+[x1] menu rendered: False; alt-screen enter (1049h) seen: True
+[x1] after Tab+Enter child: exit 0
+[x1] alt-screen exit (1049l) seen: True
+[x1] cursor-show after hide: True
+=== X2 unwrapped .ask() Ctrl-C writes 'Cancelled by user' to STDOUT file ===
+[x2] after ^C child: exit 0
+[x2] STDOUT FILE (306 bytes): b'? Pick one: (Use arrow keys)\r\n \xc2\xbb alpha\r\n   beta\r\n   gamma\r\n   delta\r\n   omega\r\n\r\n                             ? Pick one: (Use arrow keys)                                                   \r                                                                                \r\r\n\nCancelled by user\n\nRESULT:None\n'
+=== LOC count (AST scope: non-blank/non-comment lines covered by module-level nodes, excluding module docstring, 'from menu import MENU', and the __main__ If block) ===
+wrapper.py: 18
+probe_questionary.py: 20
+probe_prompt_toolkit_custom.py: 38
+probe_iterfzf.py: 12
+=== wrapper.py non-blank line count (raw) ===
+24

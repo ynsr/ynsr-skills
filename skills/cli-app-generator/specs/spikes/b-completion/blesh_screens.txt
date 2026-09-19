@@ -1,0 +1,28 @@
+===== A: 'tool ' Tab#1 (subcommands) =====
+ 0| $ tool
+ 1| items show
+
+===== B: Tab#2 (cycle) =====
+ 0| $ tool items
+ 1| items show
+
+===== C: Ctrl-U 'tool items --pick ' Tab#1 (dynamic) =====
+ 0| $ tool items --pick
+ 1| alpha beta  gamma
+
+===== D: Tab#2 =====
+ 0| $ tool items --pick alpha
+ 1| alpha beta  gamma
+
+===== E: ESC dismiss =====
+ 0| $ tool items --pick alpha
+ 1| alpha beta  gamma
+
+===== F: Ctrl-U 'tool show a' Tab (single match) =====
+ 0| $ tool items --pick alphattttool show app
+ 1| app   appwk
+
+===== G: Ctrl-U 'tool i' Tab (prefix) =====
+ 0| $ tool items --pick
+ 1| app   appwk
+

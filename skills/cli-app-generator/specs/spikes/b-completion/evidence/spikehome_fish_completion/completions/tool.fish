@@ -1,0 +1,1 @@
+complete --command tool --no-files --arguments "(env _TOOL_COMPLETE=complete_fish _TYPER_COMPLETE_FISH_ACTION=get-args _TYPER_COMPLETE_ARGS=(commandline -cp) tool)" --condition "env _TOOL_COMPLETE=complete_fish _TYPER_COMPLETE_FISH_ACTION=is-args _TYPER_COMPLETE_ARGS=(commandline -cp) tool"

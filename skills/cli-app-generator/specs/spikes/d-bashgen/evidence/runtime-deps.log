@@ -1,0 +1,10 @@
+$ env -i PATH=/usr/bin:/bin HOME=$HOME ./bashly/toytool show /tmp/data.json
+NAME	VALUE
+name	alice
+role	admin
+active	true
+exit=0
+
+$ env -i PATH=/usr/bin:/bin HOME=$HOME ./argc/toytool-argc show /tmp/data.json
+./argc/toytool-argc: line 33: argc: command not found
+exit=0

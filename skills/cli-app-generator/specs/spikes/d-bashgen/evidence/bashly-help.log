@@ -1,0 +1,44 @@
+$ ./toytool --help
+toytool - Toy tool for spike D
+
+Usage:
+  toytool COMMAND
+  toytool [COMMAND] --help | -h
+  toytool --version | -v
+
+Commands:
+  show          Read a JSON file and print a table
+  delete        Delete a file
+  completions   Generate bash completion script
+
+Options:
+  --help, -h
+    Show this help
+
+  --version, -v
+    Show version number
+
+
+$ ./toytool show --help
+toytool show - Read a JSON file and print a table
+
+Usage:
+  toytool show FILE [OPTIONS]
+  toytool show --help | -h
+
+Options:
+  --output FORMAT
+    Output format
+    Allowed: table, json, csv, tsv
+    Default: table
+
+  --help, -h
+    Show this help
+
+Arguments:
+  FILE
+    JSON file to read
+
+Examples:
+  toytool show data.json
+

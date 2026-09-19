@@ -1,0 +1,16 @@
+┌───────┬─────┬───────┐
+│NAME   │COUNT│STATUS │
+├───────┼─────┼───────┤
+│alpha  │3    │active │
+│beta   │12   │pending│
+│gamma  │7    │error  │
+│delta  │0    │active │
+│epsilon│42   │done   │
+└───────┴─────┴───────┘
+NAME,COUNT,STATUS
+alpha,3,active
+beta,12,pending
+gamma,7,error
+delta,0,active
+epsilon,42,done
+[{"name":"alpha","count":3,"status":"active"},{"name":"beta","count":12,"status":"pending"},{"name":"gamma","count":7,"status":"error"},{"name":"delta","count":0,"status":"active"},{"name":"epsilon","count":42,"status":"done"}]

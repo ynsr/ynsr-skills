@@ -1,0 +1,64 @@
+===== A: 'tool ' Tab -> subcommand menu =====
+ 0| $ tool
+ 1| items show
+
+===== B: C-c (abort -> fresh prompt) =====
+ 0| $ tool
+ 1| $
+
+===== C: 'tool items --pick ' Tab -> dynamic menu =====
+ 0| $ tool
+ 1| $ tool items --pick
+ 2| alpha beta  gamma
+
+===== D: Tab#2 -> accept first =====
+ 0| $ tool
+ 1| $ tool items --pick alpha
+ 2| alpha beta  gamma
+
+===== E: C-c (fresh prompt) =====
+ 0| $ tool
+ 1| $ tool items --pick alpha
+ 2| $
+
+===== F: 'tool show a' Tab -> single dynamic match inserts =====
+ 0| $ tool
+ 1| $ tool items --pick alpha
+ 2| $ tool show alpha
+
+===== G: C-c (fresh prompt) =====
+ 0| $ tool
+ 1| $ tool items --pick alpha
+ 2| $ tool show alpha
+ 3| $
+
+===== H: 'tool i' Tab -> prefix insert =====
+ 0| $ tool
+ 1| $ tool items --pick alpha
+ 2| $ tool show alpha
+ 3| $ tool items --pick
+
+===== I: C-c (fresh prompt) =====
+ 0| $ tool
+ 1| $ tool items --pick alpha
+ 2| $ tool show alpha
+ 3| $ tool items
+ 4| $
+
+===== J: 'tool show x' Tab -> no match (empty menu state) =====
+ 0| $ tool
+ 1| $ tool items --pick alpha
+ 2| $ tool show alpha
+ 3| $ tool items
+ 4| $ tool show blesh_screensx [blesh_screens.txt]
+ 5| blesh_screens.txt  blesh_screens2.txt blesh_screens3.txt
+
+===== K: C-c, then type 'tool items' + RET to prove shell still healthy =====
+ 0| $ tool
+ 1| $ tool items --pick alpha
+ 2| $ tool show alpha
+ 3| $ tool items
+ 4| $ tool show blesh_screensx
+ 5| $ tool items
+ 7| $
+

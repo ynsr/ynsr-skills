@@ -1,0 +1,41 @@
+$ ./toytool-argc --help
+USAGE: toytool-argc <COMMAND>
+
+COMMANDS:
+  show    Read a JSON file and print a table
+  delete  Delete a file
+
+
+$ ./toytool-argc delete --help
+Delete a file
+
+USAGE: toytool-argc delete [OPTIONS] <FILE>
+
+ARGS:
+  <FILE>  File to delete
+
+OPTIONS:
+      --output <FORMAT>  Output format [possible values: table, json, csv, tsv]
+      --dry-run          Print what would be deleted
+  -y, --yes              Skip confirmation
+  -h, --help             Print help
+
+
+$ ./toytool-argc --version
+toytool-argc 0.1.0
+
+$ ./toytool-argc show /tmp/data.json
+NAME	VALUE
+name	alice
+role	admin
+active	true
+exit=0
+
+$ ./toytool-argc delete /tmp/data.json --dry-run
+Would delete: /tmp/data.json
+exit=0
+
+$ ./toytool-argc show   (missing required arg)
+error: the following required arguments were not provided:
+  <FILE>
+exit=1

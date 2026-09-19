@@ -1,0 +1,23 @@
+### STEP A: 'tool ' Tab#1
+--- keystrokes: b'tool \t'
+--- transcript tail ---
+]666;vte.shell.postexec=0\]7;file://bs-IdeaPad-Gaming-3-15IAH7/home/bs/projects/personal/ynsr-skills/.worktrees/cli-app-generator-v2/skills/cli-app-generator/specs/spikes/b-completion\]0;bs@bs-IdeaPad-Gaming-3-15IAH7:/home/bs/projects/personal/ynsr-skills/.worktrees/cli-app-generator-v2/skills/cli-app-generator/specs/spikes/b-completion\]666;vte.shell.precmd!\[?2004h$ tool ### STEP B: Tab#2 list
+--- keystrokes: b'\t'
+--- transcript tail ---
+
+items  show   
+$ tool ### STEP C: Ctrl-U; 'tool items --pick ' Tab#1
+--- keystrokes: b'\x15tool items --pick \t'
+--- transcript tail ---
+[C[C[Ktool items --pick ### STEP D: Tab#2 list
+--- keystrokes: b'\t'
+--- transcript tail ---
+
+alpha  beta   gamma  
+$ tool items --pick ### STEP E: Ctrl-U; 'tool show a' Tab (single match)
+--- keystrokes: b'\x15tool show a\t'
+--- transcript tail ---
+[C[C[Ktool show alpha ### STEP F: Ctrl-U; 'tool i' Tab (prefix insert)
+--- keystrokes: b'\x15tool i\t'
+--- transcript tail ---
+[C[C[Ktool items ### FINAL DRAIN

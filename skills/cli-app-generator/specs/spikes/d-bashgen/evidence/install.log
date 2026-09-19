@@ -1,0 +1,11 @@
+== install timing (re-run with /usr/bin/time for the log) ==
+$ ruby --version
+ruby 3.3.8 (2025-04-09 revision b200bad6cd) [x86_64-linux-gnu]
+$ /usr/bin/time -f "wall=%es" gem install --user-install --force bashly
+Done installing documentation for bashly after 0 seconds
+1 gem installed
+wall=24.26s
+$ /usr/bin/time -f "wall=%es" curl -sL <argc-release-url> -o /tmp/argc.tgz && tar -xzf /tmp/argc.tgz -C ~/.local/bin argc
+wall=11.28s
+$ ~/.local/bin/argc --argc-version
+argc 1.24.0

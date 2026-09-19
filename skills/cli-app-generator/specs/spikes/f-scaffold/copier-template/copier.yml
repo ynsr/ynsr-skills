@@ -1,0 +1,29 @@
+# copier template config — spike F
+_min_copier_version: "9.0.0"
+
+tier:
+  type: str
+  choices:
+    - python-project
+    - go-cli
+    - bash-tool
+  default: python-project
+  help: runtime tier of the generated CLI
+
+audience:
+  type: str
+  choices:
+    - human
+    - agent
+  default: human
+  help: primary audience of the generated CLI
+
+name:
+  type: str
+  default: demo
+  help: CLI name (single token)
+
+profiles:
+  type: bool
+  default: false
+  help: include agent-profile extras

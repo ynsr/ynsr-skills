@@ -1,0 +1,89 @@
+.TH DEMO-FANG 1 "2026-09-19" "demo-fang" "Spike E probe: cobra + fang rendering"
+.SH NAME
+demo-fang - Spike E probe: cobra + fang rendering
+.SH SYNOPSIS
+\fBdemo-fang\fP [\fIoptions\&.\&.\&.\fP] [\fIargument\&.\&.\&.\fP]
+.SH DESCRIPTION
+A probe binary for the Go CLI stack spike\&. Emits sample rows\&.
+.SH OPTIONS
+.TP
+\fB--dry-run\fP
+show what would run, change nothing
+.TP
+\fB--json\fP
+shorthand for --output json
+.TP
+\fB--o --output\fP
+output format (table|json|csv|tsv)
+.TP
+\fB--q --quiet\fP
+suppress non-essential output
+.TP
+\fB--v --verbose\fP
+increase verbosity (repeatable)
+.TP
+\fB--y --yes\fP
+assume yes; skip confirmation prompts
+.SH COMMANDS
+.TP
+\fBcompletion\fP
+.RS 4
+Generate the autocompletion script for the specified shell
+.RE
+.TP
+\fBCOMMANDS\fP
+.RS 4
+\fBbash\fP
+.RS 4
+Generate the autocompletion script for bash
+.RE
+.TP
+\fBOPTIONS\fP
+.RS 4
+\fB--no-descriptions\fP
+disable completion descriptions
+.RE
+.TP
+\fBfish\fP
+.RS 4
+Generate the autocompletion script for fish
+.RE
+.TP
+\fBOPTIONS\fP
+.RS 4
+\fB--no-descriptions\fP
+disable completion descriptions
+.RE
+.TP
+\fBpowershell\fP
+.RS 4
+Generate the autocompletion script for powershell
+.RE
+.TP
+\fBOPTIONS\fP
+.RS 4
+\fB--no-descriptions\fP
+disable completion descriptions
+.RE
+.TP
+\fBzsh\fP
+.RS 4
+Generate the autocompletion script for zsh
+.RE
+.TP
+\fBOPTIONS\fP
+.RS 4
+\fB--no-descriptions\fP
+disable completion descriptions
+.RE
+.RE
+.TP
+\fBget\fP
+.RS 4
+Fetch sample items
+.RE
+.TP
+\fBhelp\fP [command]
+.RS 4
+Help about any command
+.RE

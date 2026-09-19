@@ -1,0 +1,6 @@
+524 Let password prompts customise or hide the mask character (2026-08-18)
+523 Add selected-highlighted style class for the pointed-at selected choic (2026-08-18)
+522 Bump mypy from 2.1.0 to 2.3.1 (2026-08-18)
+521 Bump pre-commit from 4.6.0 to 4.6.2 (2026-08-14)
+519 Bump actions/setup-python from 6 to 7 (2026-07-20)
+517 docs: use autofunction to get the first parameter in the function sign (2026-07-13)

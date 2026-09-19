@@ -1,0 +1,18 @@
+===== A: 'tool ' Tab -> subcommand menu =====
+ 0| % tool
+
+===== B: Tab#2 =====
+ 0| % tool
+ 1| items  -- List items, optionally picking one.
+ 2| show   -- Show a single key.
+
+===== C: Ctrl-U 'tool items --pick ' Tab (dynamic) =====
+ 0| % tool items --pick
+ 1| alpha  beta   gamma
+
+===== D: Ctrl-U 'tool show a' Tab (single match) =====
+ 0| % tool show alpha
+
+===== E: Ctrl-U 'tool i' Tab (prefix) =====
+ 0| % tool items
+

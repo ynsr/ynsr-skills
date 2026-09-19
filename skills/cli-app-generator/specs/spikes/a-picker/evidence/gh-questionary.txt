@@ -1,0 +1,1 @@
+GH tmbo/questionary pushed=2026-08-18T10:53:20Z stars=2180 open_issues=67 archived=false license=MIT

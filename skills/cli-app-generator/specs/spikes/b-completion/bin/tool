@@ -1,0 +1,6 @@
+#!/home/bs/projects/personal/ynsr-skills/.worktrees/cli-app-generator-v2/skills/cli-app-generator/specs/spikes/b-completion/.venv/bin/python
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/..")
+os.chdir(os.path.dirname(os.path.abspath(__file__)) + "/..")
+from appwk.__main__ import app
+app()

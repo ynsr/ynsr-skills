@@ -1,0 +1,11 @@
+{
+  "name": "prompt_toolkit",
+  "version": "3.0.53",
+  "license_expression": null,
+  "license_field": null,
+  "requires_python": ">=3.10",
+  "uploaded": "2026-07-26T20:56:12.512245Z",
+  "classifiers": [
+    "License :: OSI Approved :: BSD License"
+  ]
+}

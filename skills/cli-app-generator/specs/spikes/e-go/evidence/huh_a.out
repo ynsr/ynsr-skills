@@ -1,0 +1,8 @@
+[1;38;2;90;86;224mPick an output format[m 
+1. table
+2. json
+3. csv
+4. tsv
+Enter a number between 1 and 4: 
+
+table

@@ -1,0 +1,24 @@
+### editable-propagation probe — 2026-09-20T00:13:34+03:30
+
+$ uv tool install --editable /home/bs/projects/personal/ynsr-skills/.worktrees/cli-app-generator-v2/skills/cli-app-generator/specs/spikes/c-install/demo-pkg
+Resolved 1 package in 1ms
+   Building spikec-demo @ file:///home/bs/projects/personal/ynsr-skills/.worktrees/cli-app-generator-v2/skills/cli-app-generator/specs/spikes/c-install/demo-pkg
+      Built spikec-demo @ file:///home/bs/projects/personal/ynsr-skills/.worktrees/cli-app-generator-v2/skills/cli-app-generator/specs/spikes/c-install/demo-pkg
+Prepared 1 package in 4.81s
+Installed 1 package in 0.41ms
+ + spikec-demo==0.1.0 (from file:///home/bs/projects/personal/ynsr-skills/.worktrees/cli-app-generator-v2/skills/cli-app-generator/specs/spikes/c-install/demo-pkg)
+Installed 1 executable: spikec-demo
+
+$ spikec-demo
+spikec-demo 0.1.0 (pre-edit)
+
+### edit one source line — NO reinstall:
+$ sed -i 's/(pre-edit)/(POST-EDIT: EDIT PROPAGATED)/' demo-pkg/src/spikec_demo/cli.py
+
+$ spikec-demo
+spikec-demo 0.1.0 (POST-EDIT: EDIT PROPAGATED)
+
+$ cat ~/.local/share/uv/tools/spikec-demo/lib/python3.*/site-packages/_editable_impl_spikec_demo.pth
+/home/bs/projects/personal/ynsr-skills/.worktrees/cli-app-generator-v2/skills/cli-app-generator/specs/spikes/c-install/demo-pkg/src
+$ uv tool uninstall spikec-demo   # cleanup
+Uninstalled 1 executable: spikec-demo
