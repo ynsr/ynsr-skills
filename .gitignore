@@ -10,6 +10,7 @@
 **/dist/
 **/build/
 skills/cli-app-generator/templates/**/uv.lock
+!skills/cli-app-generator/templates/python-project/uv.lock
 
 # Editor / OS cruft
 .vscode/

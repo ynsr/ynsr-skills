@@ -4,5 +4,5 @@ CMD ?= .venv/bin/mycli
 check:
 	uv sync -q
 	uv run ruff check .
-	uv run pytest -q
+	uv run -- pytest -q tests
 	./scripts/verify-cli $(CMD) "list widgets" "profile remove demo"

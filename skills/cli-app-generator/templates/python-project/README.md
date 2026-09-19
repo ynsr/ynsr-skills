@@ -28,7 +28,8 @@ mycli completion bash                            # also dropped by install.sh (b
 
 ## Contract
 
-- stdout carries data only; logs, prompts, errors → stderr. Errors: agents (non-TTY or `--json`)
+- stdout carries data only; logs, prompts, errors → stderr. Errors: agents (non-TTY, or JSON
+  output requested: `--json` / `--output json` / `MYCLI_OUTPUT=json`)
   get `{"error":{"code","message","hint"}}` with a matching exit code; humans get a plain line + hint.
 - Exit codes: 0 success · 1 error · 2 usage · 3 network · 4 partial. `-v` adds a traceback,
   `-q` drops hints, `--no-input`/`CI`/non-TTY never prompt.

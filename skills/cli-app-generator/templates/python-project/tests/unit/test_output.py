@@ -5,7 +5,7 @@ import json
 import pytest
 
 from mycli import output
-from mycli.output import emit, fail
+from mycli.output import CliError, emit, fail
 
 ROWS = [{"id": 1, "name": "a", "size": 10}, {"id": 2, "name": "b", "size": 20}]
 
@@ -87,3 +87,23 @@ def test_fail_quiet_drops_hint(monkeypatch, capsys):
     with pytest.raises(SystemExit):
         fail("boom", "usage", "try --help", 2)
     assert "hint:" not in capsys.readouterr().err
+
+
+def test_envelope_requested_by_json_output_signals(monkeypatch):
+    monkeypatch.setattr(output.sys.stderr, "isatty", lambda: True, raising=False)
+    monkeypatch.setattr(output.sys, "argv", ["mycli", "list", "widgets", "--output=json"])
+    assert output._wants_envelope() is True
+    monkeypatch.setattr(output.sys, "argv", ["mycli", "list", "widgets", "-ojson"])
+    assert output._wants_envelope() is True
+    monkeypatch.setattr(output.sys, "argv", ["mycli", "list", "widgets"])
+    assert output._wants_envelope() is False
+    monkeypatch.setenv("MYCLI_OUTPUT", "json")
+    assert output._wants_envelope() is True
+    monkeypatch.setenv("MYCLI_OUTPUT", "csv")
+    assert output._wants_envelope() is False
+
+
+def test_emit_rejects_unknown_format():
+    with pytest.raises(CliError) as exc:
+        emit(ROWS, "yaml")
+    assert exc.value.code == "usage" and exc.value.status == 2

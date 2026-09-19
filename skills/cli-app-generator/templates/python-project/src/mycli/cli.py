@@ -14,11 +14,12 @@ import typer.completion as _typer_completion
 # typer >=0.27: add_completion=False never registers shell completion classes, so the env-var
 # completion server dies with "Shell bash not supported." (spike B; live on 0.27.0 AND 0.27.2).
 _typer_completion.completion_init()
-from typer._click.core import Abort as _ClickAbort  # typer 0.27 vendors click (spike B)
+from typer._click.core import Abort as _ClickAbort
 from typer._click.core import Exit as _ClickExit
 from typer._click.exceptions import ClickException, NoArgsIsHelpError, UsageError
 
 from . import __version__
+from .client import APIError
 from .config import (
     Profile,
     default_profile_name,
@@ -211,11 +212,22 @@ def schema(no_color: NoColor = False) -> None:
     import typer.main
 
     root = typer.main.get_command(app)
-    commands = {
-        name: [{"option": f"--{p.name.replace('_', '-')}", "type": p.type.name,
-                "required": p.required, "help": p.help or ""} for p in sub.params]
-        for name, sub in getattr(root, "commands", {}).items()
-    }
+    commands: dict = {}
+
+    def walk(prefix: str, cmd) -> None:
+        subs = getattr(cmd, "commands", None)
+        if subs is None:
+            commands[prefix] = [{"option": (f"--{p.name.replace('_', '-')}"
+                                            if p.param_type_name == "option" else p.name),
+                                 "type": p.type.name,
+                                 "required": p.required, "help": p.help or ""} for p in cmd.params]
+            return
+        commands[prefix] = [] if prefix else None
+        for name, sub in subs.items():
+            walk(f"{prefix} {name}" if prefix else name, sub)
+
+    walk("", root)
+    commands = {k: v for k, v in commands.items() if v is not None}
     print(json.dumps({"name": "mycli", "version": __version__,
                       "commands": commands, "profile_schema": Profile.model_json_schema()}, indent=2))
 
@@ -248,6 +260,10 @@ def main() -> None:
         fail(str(e), e.code, e.hint, e.status)
     except httpx.TransportError as e:
         fail(f"network: {e}", "network", "check connectivity, proxy env, or profile timeout", 3)
+    except APIError as e:
+        if e.code == "network":
+            fail(str(e), "network", "check connectivity, proxy env, or profile timeout", 3)
+        fail(str(e), "error", "check the profile URL/token and the request path", 1)
     except KeyboardInterrupt:
         raise SystemExit(130) from None
     except Exception as e:  # envelope contract: never a raw traceback (unless -v)

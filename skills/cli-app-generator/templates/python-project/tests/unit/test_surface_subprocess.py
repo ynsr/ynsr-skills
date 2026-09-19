@@ -108,3 +108,48 @@ def test_profile_create_roundtrip_subprocess(tmp_path):
     listed = run("profile", "list", "-o", "json", tmp_path=tmp_path)
     assert "s3cret" not in listed.stdout  # secrets never on stdout
     assert json.loads(listed.stdout)[0]["default"] is True
+
+
+def test_unknown_output_format_subprocess(tmp_path):
+    proc = run("list", "widgets", "--output", "yaml", tmp_path=tmp_path)
+    assert proc.returncode == 2
+    assert proc.stdout == ""
+    assert json.loads(proc.stderr)["error"]["code"] == "usage"
+
+
+def _tty_error(args, config_dir, env_extra=None):
+    """Run args with stderr on a PTY (isatty True); return (returncode, stderr text)."""
+    import pty
+
+    master, slave = pty.openpty()
+    env = dict(os.environ)
+    env["MYCLI_CONFIG_DIR"] = str(config_dir)
+    for var in ("MYCLI_TOKEN", "MYCLI_PROFILE", "MYCLI_OUTPUT", "MYCLI_URL",
+                "MYCLI_VERBOSE", "MYCLI_QUIET", "MYCLI_NO_INPUT", "NO_COLOR", "CI"):
+        env.pop(var, None)
+    env.update(env_extra or {})
+    try:
+        proc = subprocess.run([str(BIN), *args], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                              stderr=slave, env=env, timeout=10)
+        err = os.read(master, 65536).decode()
+    finally:
+        os.close(master)
+        os.close(slave)
+    return proc.returncode, err
+
+
+def test_json_output_signals_drive_envelope_on_tty_stderr(tmp_path):
+    cfg = tmp_path / "cfg"
+    rc, err = _tty_error(["list", "widgets", "-o", "yaml"], cfg)
+    assert rc == 2 and "error[usage]:" in err and '"error"' not in err  # TTY → human line
+    rc, err = _tty_error(["list", "widgets", "--output=json", "-o", "yaml"], cfg)
+    assert rc == 2 and json.loads(err)["error"]["code"] == "usage"  # --output=json leg
+    rc, err = _tty_error(["profile", "remove", "ghost", "--yes"], cfg, {"MYCLI_OUTPUT": "json"})
+    assert rc == 1 and json.loads(err)["error"]["code"] == "error"  # MYCLI_OUTPUT env leg
+
+
+def test_schema_includes_profile_subcommands(tmp_path):
+    proc = run("schema", tmp_path=tmp_path)
+    data = json.loads(proc.stdout)
+    assert "profile create" in data["commands"]
+    assert "--url" in [o["option"] for o in data["commands"]["profile create"]]

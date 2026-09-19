@@ -209,4 +209,39 @@ def test_schema_json():
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert "list" in data["commands"] and "profile" in data["commands"]
+    assert "profile create" in data["commands"] and "profile remove" in data["commands"]
+    create_opts = [o["option"] for o in data["commands"]["profile create"]]
+    assert "--url" in create_opts and "name" in create_opts  # argument, not a flag
     assert data["profile_schema"]["properties"]["token"]["type"] == "string"
+
+
+def test_unknown_output_format_is_usage_error():
+    result = invoke("list", "widgets", "-o", "yaml")
+    assert envelope(result)["error"]["code"] == "usage"  # exit 2 pinned by subprocess test
+    assert "yaml" in str(result.exception)
+    assert result.stdout == ""
+
+
+def test_main_maps_api_error_network_to_exit_3(monkeypatch, capsys):
+    import mycli.cli as cli
+    from mycli.client import APIError
+
+    def boom(*args, **kwargs):
+        raise APIError("unreachable", code="network")
+
+    monkeypatch.setattr(cli, "app", boom)
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 3
+    assert json.loads(capsys.readouterr().err)["error"]["code"] == "network"
+
+
+def test_main_maps_other_api_errors_to_exit_1(monkeypatch, capsys):
+    import mycli.cli as cli
+    from mycli.client import APIError
+
+    monkeypatch.setattr(cli, "app", lambda *a, **k: (_ for _ in ()).throw(APIError("HTTP 404")))
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 1
+    assert json.loads(capsys.readouterr().err)["error"]["code"] == "error"

@@ -24,6 +24,9 @@ AUDIENCE = "agent"  # scaffold flips to "human" for human tools; changes only th
 def emit(rows, fmt: str | None = None, fields: list[str] | None = None) -> None:
     """Print rows to stdout; fmt None → audience default (agent: csv, human: table)."""
     fmt = fmt or ("table" if AUDIENCE == "human" else "csv")
+    if fmt not in ("table", "json", "csv", "tsv"):
+        raise CliError(f"unknown output format: {fmt}", "usage",
+                       "valid formats: table|json|csv|tsv (--output/-o)", 2)
     rows = [dict(r) for r in rows]
     keys = list(fields or (rows[0] if rows else ()))
     if fields:
@@ -45,13 +48,18 @@ def emit(rows, fmt: str | None = None, fields: list[str] | None = None) -> None:
 
 
 def _wants_envelope() -> bool:
-    """Agents: non-TTY stderr, or the user asked for machine output."""
+    """Agents: non-TTY stderr, or the user asked for machine (JSON) output."""
     if not sys.stderr.isatty():
         return True
-    return "--json" in sys.argv or any(
-        a in ("-o", "--output") and i + 1 < len(sys.argv) and sys.argv[i + 1] == "json"
-        for i, a in enumerate(sys.argv)
-    )
+    if os.environ.get("MYCLI_OUTPUT", "").strip().lower() == "json":
+        return True
+    argv = [a.lower() for a in sys.argv]
+    for i, a in enumerate(argv):
+        if a == "--json" or a in ("-ojson", "--output=json"):
+            return True
+        if a in ("-o", "--output") and i + 1 < len(argv) and argv[i + 1] == "json":
+            return True
+    return False
 
 
 def fail(message: str, code: str, hint: str, status: int) -> None:
