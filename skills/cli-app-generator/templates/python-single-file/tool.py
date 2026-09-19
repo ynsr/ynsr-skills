@@ -1,441 +1,147 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["typer>=0.27.2,<0.28", "httpx[socks]>=0.27", "rich>=13.7"]
+# ///
 """<tool> — one-line description.
-
-Single-file Python CLI. Layout mirrors mbapi (metabase-api-cli):
-constants → profile store (0600 JSON) → requests.Session with retries →
-domain API functions → Typer commands → main().
-
-Deps: typer, rich, requests (extras per target API). Run with `uv run <tool> …`
+Single-file PEP 723 CLI. Scaffold markers: `<tool>` (display name), `<TOOL>` (env prefix),
+`<audience-output>` (DEFAULT_OUTPUT: human → table, agent → csv). Data on stdout; errors and
+progress on stderr. Exit codes: 0 success, 1 error, 2 usage, 3 network, 4 partial.
 """
 
-from __future__ import annotations
-
-import hashlib
-import json
-import os
-import re
-import sys
-from pathlib import Path
-from typing import NoReturn, Optional
-
-import requests
-import typer
-
-# --- constants ---------------------------------------------------------------
+import csv, json, os, sys, time
+import httpx, typer
+from typer._click import exceptions as _click_exc  # typer 0.27 vendors click
+from typer.main import get_command
 
 VERSION = "0.1.0"
-CONFIG_DIR = Path(os.environ.get("MYCLI_CONFIG_DIR", Path.home() / ".config" / "mycli"))
-PROFILES_DIR = CONFIG_DIR / "profiles"
-BASE_URL = os.environ.get("MYCLI_URL", "https://api.example.com")
-TIMEOUT = int(os.environ.get("MYCLI_TIMEOUT", "30"))
-RETRY_BACKOFF = 2.0
-
-EXIT_OK, EXIT_GENERAL, EXIT_USAGE, EXIT_NETWORK = 0, 1, 2, 3
-
-# --- profile store (0600 JSON files; secrets never in flags/logs) ------------
-
-
-def _profile_path(name: str) -> Path:
-    return PROFILES_DIR / f"{name}.json"
-
-
-def save_profile(name: str, data: dict) -> Path:
-    """Atomically write a 0600 profile file."""
-    _profile_path(name).parent.mkdir(parents=True, exist_ok=True)
-    tmp = _profile_path(f".{name}.tmp")
-    tmp.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
-    tmp.chmod(0o600)
-    tmp.replace(_profile_path(name))
-    return _profile_path(name)
-
-
-def load_profile(name: str) -> dict:
-    return json.loads(_profile_path(name).read_text())
-
-def list_profiles() -> list[str]:
-    return sorted(p.stem for p in PROFILES_DIR.glob("*.json")) if PROFILES_DIR.is_dir() else []
-
-
-# --- shell completion (single system: `completions show|install`) -------------
-# Subcommand names + -/-- flags complete via Click automatically; only dynamic
-# values need an autocompletion= callback (fast, offline, never raise).
-
-PROG = "<tool>"  # rename with the tool; used in markers + eval lines
-SUPPORTED_SHELLS = ("bash", "zsh", "fish")
-_RC_FILES = {"bash": "~/.bashrc", "zsh": "~/.zshrc", "fish": "~/.config/fish/config.fish"}
-
-
-def _complete_names(list_fn):
-    """Build an ``autocompletion=`` callback over locally stored names.
-
-    ``list_fn`` returns the names to offer (a local-state read — dict- or
-    list-returning). Called ONCE per Tab; wrapped so ANY failure yields []
-    instead of breaking Tab. The factory owns the failure rule, so sources
-    stay plain — including ``check=True`` subprocess calls with a short
-    ``timeout=`` (the completion server fires per keystroke).
-    """
-    def _complete(ctx, incomplete: str) -> list[str]:
-        try:
-            raw = list_fn()
-            names = list(raw.keys()) if isinstance(raw, dict) else list(raw)
-        except Exception:
-            return []
-        return sorted(n for n in names if n.startswith(incomplete))
-
-    return _complete
-
-
-_complete_profiles = _complete_names(list_profiles)
-
-
-def _ensure_completion_classes():
-    """Register Typer's shell completion classes; return shell_completion.
-
-    typer >= 0.27 vendors click but only registers its bash/zsh/fish
-    completion classes inside ``completion_init()``, which the env-var
-    completion server (``_<PROG>_COMPLETE=complete_<shell>``) never
-    calls — without this every Tab dies with "Shell bash not supported."
-    (ble.sh fires the server on every keystroke). Call once at startup
-    (``main()``) and before rendering a script. Idempotent; falls back
-    to a plain click install (classes self-register there).
-    """
-    try:
-        from typer._click import shell_completion
-    except ImportError:  # older typer: plain click
-        import click.shell_completion as shell_completion
-        return shell_completion
-    if not shell_completion.get_completion_class("bash"):
-        from typer._completion_classes import completion_init
-        completion_init()
-    return shell_completion
-
-
-def _detect_shell() -> Optional[str]:
-    shell = os.path.basename(os.environ.get("SHELL", "")).strip()
-    return shell if shell in SUPPORTED_SHELLS else None
-
-
-def _eval_line(shell: str) -> str:
-    """The rc line the user sources. fish uses () instead of $().
-
-    Server stderr is discarded inside the sourced line: a failing
-    completion server must never print into the shell (ble.sh/zsh fire
-    it on every keystroke). Manual `completions show` still shows errors.
-    """
-    if shell == "fish":
-        return f"{PROG} completions show fish 2>/dev/null | source"
-    return f'eval "$({PROG} completions show {shell} 2>/dev/null)"'
-
-
-def _install_snippet(shell: str) -> str:
-    lines = [f"# >>> {PROG} completions >>>"]
-    if shell == "zsh":
-        lines.append(f"autoload -U compinit && compinit  # required for completion (added by {PROG})")
-    lines.append(_eval_line(shell))
-    lines.append(f"# <<< {PROG} completions <<<")
-    return "\n".join(lines) + "\n"
-
-
-def _install_completion(shell: str, rcfile: Optional[Path] = None) -> tuple[Path, bool]:
-    """Idempotent rc edit: (rc path, changed). Atomic write, .bak backup."""
-    if shell not in SUPPORTED_SHELLS:
-        _fail(f"unsupported shell {shell!r} (choose from: {', '.join(SUPPORTED_SHELLS)})", EXIT_USAGE)
-    rc = Path(rcfile).expanduser() if rcfile else Path(_RC_FILES[shell]).expanduser()
-    snippet = _install_snippet(shell)
-    existing = rc.read_text(encoding="utf-8") if rc.is_file() else ""
-    if snippet.strip() in existing:
-        return rc, False
-    pattern = re.compile(f"# >>> {re.escape(PROG)} completions >>>.*?# <<< {re.escape(PROG)} completions <<<\\n?", re.DOTALL)
-    updated = pattern.sub(snippet, existing) if pattern.search(existing) else existing + ("" if not existing or existing.endswith("\n") else "\n") + ("\n" if existing else "") + snippet
-    rc.parent.mkdir(parents=True, exist_ok=True)
-    if rc.is_file():
-        import shutil
-        shutil.copy2(rc, rc.parent / (rc.name + ".bak"))
-    tmp = rc.parent / (rc.name + ".tmp")
-    tmp.write_text(updated, encoding="utf-8")
-    tmp.replace(rc)
-    return rc, True
-
-
-# --- install receipt (stale-install guard; written by install.sh) ------------
-
-
-def _receipt_path() -> Path:
-    return Path.home() / ".local" / "share" / PROG / "install-receipt.json"
-
-
-def _source_hash(path: Path) -> str:
-    """SHA-256 over the script bytes, 12 hex chars (mirrors install.sh)."""
-    return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
-
-
-def _dev_staleness_warning(here: Path | None = None) -> str | None:
-    """Warn when running the source copy while the installed copy is stale.
-
-    install.sh copies this file to ~/.local/bin/<tool> and records its hash
-    in the receipt. Fires only when __file__ resolves outside the installed
-    locations (~/.local, site-packages) — the installed copy never warns
-    about itself — and the running file's hash differs from the receipt.
-    """
-    here = (here or Path(__file__)).resolve()
-    if "site-packages" in here.parts or (Path.home() / ".local") in here.parents:
-        return None
-    try:
-        receipt = json.loads(_receipt_path().read_text())
-    except (OSError, ValueError):
-        return None
-    if _source_hash(here) != receipt.get("source_hash"):
-        return (f"warning: running {PROG} from the source tree, but the installed "
-                "copy is stale — fix with: ./install.sh")
-    return None
-
-
-# --- HTTP session ------------------------------------------------------------
-
-
-def make_session(token: str) -> requests.Session:
-    """Session with retries on 5xx/timeouts; base headers + auth."""
-    s = requests.Session()
-    retries = requests.packages.urllib3.util.retry.Retry(   # type: ignore[attr-defined]
-        total=3, backoff_factor=RETRY_BACKOFF,
-        status_forcelist=(429, 500, 502, 503, 504),
-        allowed_methods=frozenset({"GET", "POST", "PUT", "DELETE"}),
-    )
-    adapter = requests.adapters.HTTPAdapter(max_retries=retries)
-    s.mount("https://", adapter)
-    s.mount("http://", adapter)
-    s.headers.update({"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-    return s
-
-
-def api_get(session: requests.Session, path: str, params: dict | None = None) -> dict:
-    """GET + raise SystemExit(EXIT_NETWORK/EXIT_GENERAL) on failure."""
-    try:
-        resp = session.get(f"{BASE_URL}{path}", params=params, timeout=TIMEOUT)
-        resp.raise_for_status()
-        return resp.json()
-    except requests.exceptions.Timeout:
-        print(f"error: request timed out after {TIMEOUT}s", file=sys.stderr)
-        sys.exit(EXIT_NETWORK)
-    except requests.exceptions.HTTPError as exc:
-        status = exc.response.status_code if exc.response is not None else "?"
-        print(f"error: HTTP {status}: {exc}", file=sys.stderr)
-        sys.exit(EXIT_GENERAL)
-
-
-# --- domain API functions (thin; keep logic here, not in commands) -----------
-
-
-def fetch_items(session, resource: str) -> list[dict]:
-    return api_get(session, f"/{resource}").get("items", [])
-
-
-# --- Typer commands ----------------------------------------------------------
+TOKEN = os.environ.get("<TOOL>_TOKEN", "")  # secret: env only, never a flag
+BASE_URL = os.environ.get("<TOOL>_URL", "https://api.example.com").rstrip("/")
+TIMEOUT = float(os.environ.get("<TOOL>_TIMEOUT", "30"))
+DEFAULT_OUTPUT = "table"  # <audience-output>
+_EXIT_NAMES = {1: "error", 2: "usage", 3: "network", 4: "partial"}; AGENT_JSON, QUIET = False, False
 
 app = typer.Typer(
-    help="<tool> — one-line description. Primary audience: AI agents — CSV with a header row by default, --json for JSON.",
-    no_args_is_help=True,
-    add_completion=False,  # single completion system: `completions show|install` below
-    context_settings={"help_option_names": ["-h", "--help"]},
-    pretty_exceptions_enable=False,
-)
+    help="<tool> — one-line description.\n\nExit codes: 0 success, 1 error, 2 usage, 3 network, 4 partial.",
+    no_args_is_help=True, add_completion=False,  # lean tier: no shell-completion machinery
+    context_settings={"help_option_names": ["-h", "--help"]}, pretty_exceptions_enable=False)
 
 
-def _interactive_pick(label: str, options: dict[str, str]) -> str | None:
-    """Arrow-key selection when stdin is a TTY; None otherwise.
-
-    ``options`` maps choice → description (rendered dim after the item).
-    """
-    items = list(options.items())
-    idx = pick_index(label, [(name, desc) for name, desc in items])
-    return None if idx is None else items[idx][0]
+def _error_out(code: int, message: str, hint: str = "") -> None:
+    """Agents (non-TTY or --output json) get {"error":{code,message,hint}}; humans a plain line."""
+    if not sys.stderr.isatty() or AGENT_JSON:
+        print(json.dumps({"error": {"code": _EXIT_NAMES.get(code, "error"), "message": message, "hint": hint}}), file=sys.stderr)
+    else:
+        print(f"error: {message}" + ("" if QUIET or not hint else f" (hint: {hint})"), file=sys.stderr)
 
 
-def pick_index(label, options, *, read=None, stream=None):
-    """Arrow-key picker (stdlib-only): ↑/↓ move, Enter selects, q/Esc/Ctrl-C aborts.
+def _fail(message: str, code: int, hint: str = "") -> None:
+    _error_out(code, message, hint); raise typer.Exit(code)
 
-    Options are str or (item, description); returns the index, or None on
-    non-TTY stdin / abort. The list renders on stderr and is erased on exit.
-    ``read``/``stream`` are injection seams for tests.
-    """
-    _UP, _ERASE, _HIDE, _SHOW = "\x1b[1A", "\x1b[2K", "\x1b[?25l", "\x1b[?25h"
-    _DIM, _CYAN, _RST = "\x1b[2m", "\x1b[1;36m", "\x1b[0m"
 
-    def _key(read):
-        ch = read(1)
-        if not ch or ch in ("q", "Q", "\x03", "\x04"):
-            return "abort"
-        if ch in ("\r", "\n"):
-            return "enter"
-        if ch == "\x1b":
-            if read(1) != "[":
-                return "abort"
-            code = read(1)
-            return {"A": "up", "B": "down"}.get(code, "abort")
-        return "other"
+def _client() -> httpx.Client:
+    if not TOKEN:
+        _fail("config: <TOOL>_TOKEN is not set", 2, hint="export <TOOL>_TOKEN=<token>")
+    return httpx.Client(base_url=BASE_URL, timeout=TIMEOUT, headers={"Authorization": f"Bearer {TOKEN}"}, transport=httpx.HTTPTransport(retries=2))
 
-    def _line(opt, selected):
-        name, *rest = opt if isinstance(opt, tuple) else (opt,)
-        marker = f"{_CYAN}❯{_RST}" if selected else " "
-        desc = f"  {_DIM}{rest[0]}{_RST}" if rest and rest[0] else ""
-        return f"{_ERASE}{marker} {name}{desc}\n"
 
-    stream = stream or sys.stderr
-    if not options:
-        return None
-    raw = None
-    if read is None:
+def api_get(client: httpx.Client, path: str) -> dict:
+    """GET JSON with 3 attempts on 5xx/timeouts (0.5s→2s capped backoff); 4xx/parse fails fast."""
+    err: Exception | None = None
+    for attempt in range(3):
         try:
-            if not sys.stdin.isatty():
-                return None
-            import termios
-            import tty
-            fd = sys.stdin.fileno()
-            old = termios.tcgetattr(fd)
-
-            def raw():
-                tty.setraw(fd)
-                try:
-                    yield
-                finally:
-                    termios.tcsetattr(fd, termios.TCSADRAIN, old)
-            read = sys.stdin.read
-        except (OSError, ValueError, ImportError):
-            return None
-    idx, chosen = 0, None
-    stream.write(f"{label}\n")
-    for i, opt in enumerate(options):
-        stream.write(_line(opt, i == 0))
-    stream.flush()
-    try:
-        if raw is not None:
-            raw().__next__()
-        stream.write(_HIDE)
-        while True:
-            key = _key(read)
-            if key in ("enter", "abort"):
-                chosen = None if key == "abort" else idx
-                break
-            if key in ("up", "down"):
-                idx = (idx + (-1 if key == "up" else 1)) % len(options)
-                stream.write(_UP * len(options))
-                for i, opt in enumerate(options):
-                    stream.write(_line(opt, i == idx))
-                stream.flush()
-    finally:
-        if raw is not None:
-            raw().__next__()
-        stream.write(_UP * len(options))
-        for _ in range(len(options)):
-            stream.write(_ERASE + "\x1b[1B")
-        stream.write(_SHOW)
-        stream.flush()
-    return chosen
+            resp = client.get(path); resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code < 500:
+                _fail(f"HTTP {exc.response.status_code} on GET {path}", 1, hint="check <TOOL>_URL / credentials")
+            err = exc
+        except httpx.TransportError as exc:  # timeouts + connect/reset
+            err = exc
+        except ValueError:
+            _fail(f"GET {path}: response is not JSON", 1)
+        time.sleep(min(2.0, 0.5 * 2**attempt))
+    _fail(f"GET {path} failed after 3 attempts: {err}", 3, hint="check network / <TOOL>_URL")
 
 
-def _fail(msg: str, code: int) -> NoReturn:
-    print(f"error: {msg}", file=sys.stderr)
-    sys.exit(code)
-
-
-def _get_session(profile_name: str | None) -> tuple[requests.Session, dict]:
-    name = profile_name or os.environ.get("MYCLI_PROFILE") or "default"
-    try:
-        prof = load_profile(name)
-    except FileNotFoundError:
-        _fail(f"profile '{name}' not found; create it with: <tool> profile create {name}", EXIT_USAGE)
-    return make_session(prof["token"]), prof
-
+def _emit(rows: list[dict], fmt: str) -> None:
+    """Render rows: json (stdlib), csv/tsv (RFC4180 quoting), aligned plain table."""
+    keys = list(rows[0]) if rows else []
+    if fmt == "json":
+        print(json.dumps(rows, indent=2, default=str)); return
+    if fmt in ("csv", "tsv"):
+        writer = csv.writer(sys.stdout, delimiter="\t" if fmt == "tsv" else ",")
+        writer.writerow(keys)
+        for row in rows:
+            writer.writerow([row.get(k, "") for k in keys])
+    else:
+        cells = [keys] + [[str(row.get(k, "")) for k in keys] for row in rows]
+        widths = [max(map(len, col)) for col in zip(*cells)]
+        for row in cells:
+            print("  ".join(cell.ljust(widths[i]) for i, cell in enumerate(row)).rstrip())
 
 @app.command()
 def items(
-    resource: str = typer.Argument(..., help="Resource to fetch."),
-    json_output: bool = typer.Option(False, "--json", help="JSON instead of CSV."),
-    profile_name: str = typer.Option(None, "--profile", "-p", envvar="MYCLI_PROFILE", autocompletion=_complete_profiles, help="Auth profile."),
+    resource: str = typer.Argument(..., help="Resource to fetch (GET <base>/<resource>, reads items[])."),
+    output: str | None = typer.Option(None, "--output", "-o", help="table|json|csv|tsv."),
+    json_alias: bool = typer.Option(False, "--json", help="Alias for --output json."),
 ) -> None:
-    """Fetch items (CSV with headers by default; --json for jq).
-
-    Example:
-      <tool> items widgets
-      <tool> items widgets --json | jq '.[0]'
-    """
-    session, _ = _get_session(profile_name)
-    rows = fetch_items(session, resource)
-    if json_output:
-        print(json.dumps(rows, indent=2))
-        return
-    import csv
-    if not rows:
-        return
-    keys = list(rows[0].keys())
-    w = csv.writer(sys.stdout)
-    w.writerow(keys)
-    for r in rows:
-        w.writerow([r.get(k, "") for k in keys])
-
+    """List a resource's rows (flat CSV with header by default; --json for jq)."""
+    fmt = output or ("json" if json_alias else DEFAULT_OUTPUT)
+    if fmt not in ("table", "json", "csv", "tsv"):
+        _fail(f"unknown output format '{fmt}'", 2, hint="table|json|csv|tsv")
+    global AGENT_JSON; AGENT_JSON = fmt == "json"
+    _emit(api_get(_client(), f"/{resource}").get("items", []), fmt)
 
 @app.command()
-def version() -> None:
-    """Print version."""
-    print(f"<tool> {VERSION}")
+def doctor(json_flag: bool = typer.Option(False, "--json", help="Single-line JSON status (cli-hub parses it).")) -> None:
+    """Health check — prints `status: ok|missing` (never 'stale'); exit 0 ok, 1 missing."""
+    problem = "" if TOKEN else "config: <TOOL>_TOKEN is not set"
+    print(json.dumps({"status": "missing" if problem else "ok", "message": problem}) if json_flag
+          else f"status: {'missing' if problem else 'ok'}" + (f"\n  FAIL {problem}" if problem else ""))
+    raise typer.Exit(0 if not problem else 1)
 
-
-completions_app = typer.Typer(help="Shell completion: print the init script or install it into your rc file.", no_args_is_help=True)
-app.add_typer(completions_app, name="completions")
-
-
-@completions_app.command("show")
-def completions_show(shell: str = typer.Argument(..., help="Shell to print the init script for (bash, zsh, fish).")) -> None:
-    """Print the shell init script — source it via eval in your rc file.
-
-    Example:
-      eval "$(<tool> completions show bash)"   # ~/.bashrc
-      eval "$(<tool> completions show zsh)"    # ~/.zshrc
-      <tool> completions show fish | source    # fish config
-    """
-    import typer.main as _typer_main
-    _sc = _ensure_completion_classes()
-
-    if shell not in SUPPORTED_SHELLS:
-        _fail(f"unsupported shell {shell!r} (choose from: {', '.join(SUPPORTED_SHELLS)})", EXIT_USAGE)
-    cls = _sc.get_completion_class(shell)
-    complete_var = f"_{PROG.upper().replace('-', '_')}_COMPLETE"
-    print(cls(_typer_main.get_command(app), {}, PROG, complete_var).source(), end="")
-
-
-@completions_app.command("install")
-def completions_install(
-    shell: Optional[str] = typer.Argument(None, help="Shell to install for (bash, zsh, fish). Omit: detect from $SHELL."),
-    rcfile: Optional[str] = typer.Option(None, "--rcfile", help="Rc file to edit (default per shell)."),
-    yes: bool = typer.Option(False, "--yes", help="Skip confirmation (needed for non-interactive/agent use)."),
+@app.command()
+def delete(
+    resource: str = typer.Argument(..., help="Resource name."),
+    row_id: str = typer.Argument(..., help="Row id to delete."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Print the request that would be sent."),
+    yes: bool = typer.Option(False, "--yes", help="Execute (destructive)."),
 ) -> None:
-    """Install the eval line into your rc file (idempotent; keeps a .bak backup).
+    """Template destructive command: --dry-run previews, --yes executes, neither refuses."""
+    if dry_run:
+        print(f"would send: DELETE {BASE_URL}/{resource}/{row_id}"); return
+    if not yes:
+        _fail("refusing to delete without --yes", 2, hint="pass --yes to execute, --dry-run to preview")
+    try:
+        _client().delete(f"/{resource}/{row_id}").raise_for_status()
+    except httpx.HTTPError as exc:
+        status = exc.response.status_code if exc.response is not None else 0
+        _fail(f"DELETE {resource}/{row_id}: {exc}", 3 if not status or status >= 500 else 1)
+    print(f"deleted {resource}/{row_id}")
 
-    Example:
-      <tool> completions install            # detect shell from $SHELL
-      <tool> completions install bash       # explicit shell
-    The eval line spawns Python on each new shell (~200-400ms) but never goes stale.
-    """
-    resolved = shell or _detect_shell()
-    if resolved is None:
-        _fail(f"cannot detect shell from $SHELL={os.environ.get('SHELL', '')!r}; pass bash, zsh, or fish explicitly", EXIT_USAGE)
-    if not yes and sys.stdin.isatty() and not typer.confirm(f"Add {PROG} completion to your {resolved} rc file?"):
-        sys.exit(EXIT_USAGE)
-    rc, changed = _install_completion(resolved, Path(rcfile) if rcfile else None)
-    if changed:
-        print(f"installed {PROG} completion for {resolved} in {rc}", file=sys.stderr)
-        print(f"restart your shell or run: source {rc}", file=sys.stderr)
-    else:
-        print(f"already installed in {rc}", file=sys.stderr)
+def _version(value: bool) -> None:
+    if value:
+        print(f"<tool> {VERSION}"); raise typer.Exit(0)
 
+@app.callback()
+def _main(
+    version: bool | None = typer.Option(None, "--version", "-v", callback=_version, is_eager=True, help="Print version and exit."),
+    quiet: bool = typer.Option(False, "-q", "--quiet", help="Hide hints on error output."),
+    no_color: bool = typer.Option(False, "--no-color", help="Accepted for the contract; output is plain text."),
+) -> None:
+    global QUIET; QUIET = quiet
 
-def main() -> None:
-    warning = _dev_staleness_warning()
-    if warning:
-        print(warning, file=sys.stderr)
-    _ensure_completion_classes()  # typer 0.27: runtime server needs registered classes
-    app()
-
+def main() -> int:
+    """Owns exit codes + the error envelope; standalone_mode=False returns (not raises) Exit codes."""
+    if "--no-color" in sys.argv:
+        os.environ["NO_COLOR"] = "1"  # rich/typer help styling reads it
+    try:
+        return get_command(app)(standalone_mode=False) or 0
+    except _click_exc.ClickException as exc:  # usage errors → envelope, exit 2
+        _error_out(exc.exit_code, exc.format_message(), "run with --help"); return exc.exit_code
+    except _click_exc.Abort:
+        _error_out(130, "aborted by user"); return 130
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

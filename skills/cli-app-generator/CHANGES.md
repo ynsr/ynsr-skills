@@ -17,3 +17,12 @@ One line per removal/replacement during the v2 redesign: `- <what> → <replacem
 - templates/python-project mycli `--json`/`-o json` only → `--output/-o table|json|csv|tsv` + `--json` alias : universal contract §4.1.2; verify-cli check 3 red (Task 8)
 - templates/python-project mycli typer rich usage error → `{"error":{"code","message","hint"}}` on stderr with matching exit code : contract §4.1.7; verify-cli check 6 red (Task 8)
 - templates/python-project mycli interactive `profile remove` prompt → `--dry-run` prints plan / `--yes` executes; non-TTY must not prompt : contract §4.1.4/6; verify-cli check 7 red (Task 8)
+- templates/python-single-file tool.py requests.Session + urllib3 retries → PEP 723 (uv) + httpx Client with own 3-attempt bounded-backoff retry : httpx everywhere (spec §2.1); verify-cli checks 1–7 green
+- templates/python-single-file 0600 profile store (save/load/list) → env-only config (`<TOOL>_TOKEN/_URL/_TIMEOUT`) : bash/single-file tiers get env vars only (SKILL.md Step 2); secrets never in flags
+- templates/python-single-file hand-rolled arrow-key picker copy (~80 LOC) → deleted : tier is env-only, no wizard/picker; questionary wrapper stays a project-tier add-on
+- templates/python-single-file `completions show|install` + rc-marker editing + receipt/dev-warning stale guard → deleted : spike C symlink install makes staleness structurally impossible; slim `doctor` (`status: ok|missing` + `--json`) keeps the cli-hub contract
+- templates/python-single-file `version` subcommand → `--version`/`-v` flag + `-q` quiet + `--no-color` : contract §4.1.5/6
+- templates/python-single-file error path (`error: …` print + exit) → `{"error":{code,message,hint}}` envelope on stderr (non-TTY or `--output json`) : contract §4.1.7; verify-cli check 6 green
+- templates/python-single-file agent list extras (`--fields`/`--limit`) → deleted : compact tier keeps the read command minimal; pagination/field selection belongs to the project tier
+- templates/python-single-file install.sh cp+receipt → `ln -sfn` symlink + best-effort `cli-hub register --source-path tool.py`; uninstall.sh → rm + unregister : DECISIONS row C
+- templates/python-single-file tool.py 441 + install/uninstall 103 → 147 + 19 + 8 = 174 LOC : spec §4.3 budget 175
