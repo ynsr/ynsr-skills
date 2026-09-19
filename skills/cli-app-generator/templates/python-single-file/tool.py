@@ -115,9 +115,10 @@ def delete(
         _fail("refusing to delete without --yes", 2, hint="pass --yes to execute, --dry-run to preview")
     try:
         _client().delete(f"/{resource}/{row_id}").raise_for_status()
-    except httpx.HTTPError as exc:
-        status = exc.response.status_code if exc.response is not None else 0
-        _fail(f"DELETE {resource}/{row_id}: {exc}", 3 if not status or status >= 500 else 1)
+    except httpx.HTTPStatusError as exc:
+        _fail(f"DELETE {resource}/{row_id}: HTTP {exc.response.status_code}", 3 if exc.response.status_code >= 500 else 1, hint="check <TOOL>_URL / credentials")
+    except httpx.RequestError as exc:
+        _fail(f"DELETE {resource}/{row_id}: {exc}", 3, hint="check network / <TOOL>_URL")
     print(f"deleted {resource}/{row_id}")
 
 def _version(value: bool) -> None:
