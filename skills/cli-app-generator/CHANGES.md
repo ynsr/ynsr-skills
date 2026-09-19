@@ -13,3 +13,7 @@ One line per removal/replacement during the v2 redesign: `- <what> → <replacem
 - SKILL.md `recovering-from-edit-thrash` bullet → deleted : spec §6 drop; unrelated to CLI generation
 - SKILL.md Steps 1+2 (ask inputs / identify audience) → merged Step 1 ask-once : spec §6 batched single ask
 - SKILL.md hand-rolled tier layout snippets (PEP 723, project tree, Go tree, pipx) → scaffold.sh command + references/stacks.md : scaffolder emits tier × audience skeletons (DECISIONS row F)
+- templates/python-project mycli `--help` (no exit-code legend) → documented 0/1/2/3/4 exit codes : verify-cli check 1 requires it (Task 8 red run)
+- templates/python-project mycli `--json`/`-o json` only → `--output/-o table|json|csv|tsv` + `--json` alias : universal contract §4.1.2; verify-cli check 3 red (Task 8)
+- templates/python-project mycli typer rich usage error → `{"error":{"code","message","hint"}}` on stderr with matching exit code : contract §4.1.7; verify-cli check 6 red (Task 8)
+- templates/python-project mycli interactive `profile remove` prompt → `--dry-run` prints plan / `--yes` executes; non-TTY must not prompt : contract §4.1.4/6; verify-cli check 7 red (Task 8)
