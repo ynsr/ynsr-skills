@@ -2,16 +2,21 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func resetOutput(format string, asjson bool) {
 	output, asJSON = format, asjson
 }
-
 func TestEmitTableHasHeaderAndRows(t *testing.T) {
 	resetOutput("table", false)
 	var b bytes.Buffer
@@ -92,4 +97,50 @@ func TestCodeOfClassifiesUsageErrors(t *testing.T) {
 	if got := codeOf(cerr{4, "partial", ""}); got != 4 {
 		t.Errorf("codeOf(cerr) = %d, want 4", got)
 	}
+}
+
+func TestRetryClientRecoversFromFlaky5xx(t *testing.T) {
+	var hits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits++
+		if hits < 3 {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		_, _ = w.Write([]byte(`[{"name":"alpha","size":3,"status":"ok"}]`))
+	}))
+	defer srv.Close()
+	items, err := fetchItems(srv.URL)
+	if err != nil || len(items) != 1 || items[0].Name != "alpha" {
+		t.Fatalf("flaky 5xx should recover, got %v (%+v)", err, items)
+	}
+}
+
+func TestRetryClientFailsClosedOnPersistent5xx(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+	client := RetryClient{HTTP: srv.Client(), RetryMax: 1, WaitMin: time.Millisecond, WaitMax: time.Millisecond, Logger: testLogger()}
+	_, err := client.Do(mustGet(t, srv.URL))
+	if err == nil || !strings.Contains(err.Error(), "HTTP 500") {
+		t.Fatalf("persistent 5xx must error, got %v", err)
+	}
+	_, err = fetchItems(srv.URL)
+	if err == nil {
+		t.Fatal("fetchItems must surface the exhausted-retry error")
+	}
+}
+
+func mustGet(t *testing.T, url string) *http.Request {
+	t.Helper()
+	req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return req
+}
+
+func testLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }

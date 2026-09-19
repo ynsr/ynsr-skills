@@ -2,10 +2,15 @@
 # check.sh — lint + tests + verify-cli (skill scaffolding copies scripts/verify-cli next to this).
 set -euo pipefail
 DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-command -v bashly >/dev/null 2>&1 || export PATH="$(echo ~/.local/share/gem/ruby/*/bin | tr ' ' ':'):$PATH"
+if ! command -v bashly >/dev/null 2>&1; then   # guarded fallback: never put a literal glob in PATH
+  shopt -s nullglob
+  gems=(~/.local/share/gem/ruby/*/bin)
+  shopt -u nullglob
+  [ -x "${gems[0]:-}/bashly" ] && export PATH="${gems[0]}:$PATH" || true
+fi
 command -v shellcheck >/dev/null 2>&1 || export PATH="$HOME/.local/bin:$PATH"
 (cd "$DIR" && bashly generate)
-shellcheck "$DIR/sample" "$DIR"/src/*.sh "$DIR"/src/lib/contract.sh 2>/dev/null
+shellcheck "$DIR/sample" "$DIR"/src/*.sh "$DIR"/src/lib/contract.sh
 bats "$DIR"/test
 FIXTURE=$(mktemp); printf '{"name":"alice","role":"admin"}\n' > "$FIXTURE"; trap 'rm -f "$FIXTURE"' EXIT
 VERIFY="$DIR/../verify-cli"; [ -f "$VERIFY" ] || VERIFY=$(command -v verify-cli)

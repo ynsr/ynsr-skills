@@ -122,7 +122,9 @@ func main() {
 Exit codes: 0 success, 1 error, 2 usage, 3 network, 4 partial. Stdout carries data only.`}
 	pf := root.PersistentFlags()
 	pf.StringVarP(&output, "output", "o", "table", "output format (table|json|csv|tsv)")
+	pf.BoolVar(&asJSON, "json", false, "shorthand for --output json")
 	pf.Bool("no-color", false, "disable ANSI output") // output is plain anyway; contract parity
+	pf.BoolVarP(&quiet, "quiet", "q", false, "suppress non-essential stderr output")
 	del := &cobra.Command{Use: "delete FILE", Short: "Delete a file (destructive)", Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			if dryRun {

@@ -33,6 +33,11 @@ teardown() { rm -rf "$TESTDIR"; }
     [ "$status" -eq 0 ]
     [ "${lines[0]}" = "$(printf 'name\tvalue')" ]
 }
+@test "delete --yes on a missing path fails with envelope (rm is not -f)" {
+    run "$BIN" delete "$TESTDIR/no-such-file" --yes
+    [ "$status" -eq 1 ]
+    grep -q '"code":"error"' <<<"$output"
+}
 
 @test "show --json alias emits parseable JSON" {
     run "$BIN" show "$TESTDIR/data.json" --json

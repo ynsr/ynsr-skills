@@ -7,5 +7,5 @@ fi
 if [[ ${args[--yes]:-} != 1 ]]; then
   fail 2 "refusing to delete without --yes" "append --yes to execute; --dry-run previews the plan"
 fi
-rm -f -- "$file" || fail 1 "delete failed: $file" "check permissions"
+rm -- "$file" || fail 1 "delete failed: $file" "check permissions"
 [[ ${args[--quiet]:-} != 1 ]] && printf 'deleted: %s\n' "$file" >&2
