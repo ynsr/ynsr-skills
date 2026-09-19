@@ -241,6 +241,98 @@ app = typer.Typer(
 )
 
 
+def _interactive_pick(label: str, options: dict[str, str]) -> str | None:
+    """Arrow-key selection when stdin is a TTY; None otherwise.
+
+    ``options`` maps choice → description (rendered dim after the item).
+    """
+    items = list(options.items())
+    idx = pick_index(label, [(name, desc) for name, desc in items])
+    return None if idx is None else items[idx][0]
+
+
+def pick_index(label, options, *, read=None, stream=None):
+    """Arrow-key picker (stdlib-only): ↑/↓ move, Enter selects, q/Esc/Ctrl-C aborts.
+
+    Options are str or (item, description); returns the index, or None on
+    non-TTY stdin / abort. The list renders on stderr and is erased on exit.
+    ``read``/``stream`` are injection seams for tests.
+    """
+    _UP, _ERASE, _HIDE, _SHOW = "\x1b[1A", "\x1b[2K", "\x1b[?25l", "\x1b[?25h"
+    _DIM, _CYAN, _RST = "\x1b[2m", "\x1b[1;36m", "\x1b[0m"
+
+    def _key(read):
+        ch = read(1)
+        if not ch or ch in ("q", "Q", "\x03", "\x04"):
+            return "abort"
+        if ch in ("\r", "\n"):
+            return "enter"
+        if ch == "\x1b":
+            if read(1) != "[":
+                return "abort"
+            code = read(1)
+            return {"A": "up", "B": "down"}.get(code, "abort")
+        return "other"
+
+    def _line(opt, selected):
+        name, *rest = opt if isinstance(opt, tuple) else (opt,)
+        marker = f"{_CYAN}❯{_RST}" if selected else " "
+        desc = f"  {_DIM}{rest[0]}{_RST}" if rest and rest[0] else ""
+        return f"{_ERASE}{marker} {name}{desc}\n"
+
+    stream = stream or sys.stderr
+    if not options:
+        return None
+    raw = None
+    if read is None:
+        try:
+            if not sys.stdin.isatty():
+                return None
+            import termios
+            import tty
+            fd = sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+
+            def raw():
+                tty.setraw(fd)
+                try:
+                    yield
+                finally:
+                    termios.tcsetattr(fd, termios.TCSADRAIN, old)
+            read = sys.stdin.read
+        except (OSError, ValueError, ImportError):
+            return None
+    idx, chosen = 0, None
+    stream.write(f"{label}\n")
+    for i, opt in enumerate(options):
+        stream.write(_line(opt, i == 0))
+    stream.flush()
+    try:
+        if raw is not None:
+            raw().__next__()
+        stream.write(_HIDE)
+        while True:
+            key = _key(read)
+            if key in ("enter", "abort"):
+                chosen = None if key == "abort" else idx
+                break
+            if key in ("up", "down"):
+                idx = (idx + (-1 if key == "up" else 1)) % len(options)
+                stream.write(_UP * len(options))
+                for i, opt in enumerate(options):
+                    stream.write(_line(opt, i == idx))
+                stream.flush()
+    finally:
+        if raw is not None:
+            raw().__next__()
+        stream.write(_UP * len(options))
+        for _ in range(len(options)):
+            stream.write(_ERASE + "\x1b[1B")
+        stream.write(_SHOW)
+        stream.flush()
+    return chosen
+
+
 def _fail(msg: str, code: int) -> NoReturn:
     print(f"error: {msg}", file=sys.stderr)
     sys.exit(code)

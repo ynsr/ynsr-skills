@@ -14,10 +14,11 @@ from typing import Optional
 import typer
 
 from . import completions as _completions
+from . import doctor as _doctor
 from . import ops
 from .client import Client, NetworkError, SolrHTTPError
 from .config import Profile, ProfileError, get_default, list_profiles, load_profile, resolve_profile, save_profile, set_default
-from . import doctor as _doctor
+from .pick import pick_index
 
 __version__ = "0.1.0"
 
@@ -74,19 +75,14 @@ def _emit_rows(rows: list[dict], json_output: bool, keys: list[str] | None = Non
         w.writerow([r.get(k, "") for k in keys])
 
 
-def _interactive_pick(label: str, options: dict[str, str]) -> str:
-    """Prompted selection when stdin is a TTY; None otherwise."""
-    if not sys.stdin.isatty():
-        return None
-    print(label, file=sys.stderr)
+def _interactive_pick(label: str, options: dict[str, str]) -> str | None:
+    """Arrow-key selection when stdin is a TTY; None otherwise.
+
+    ``options`` maps choice → description (rendered dim after the item).
+    """
     items = list(options.items())
-    for i, (name, desc) in enumerate(items, 1):
-        print(f"  {i}. {name}" + (f" — {desc}" if desc else ""), file=sys.stderr)
-    raw = input(f"number [1-{len(items)}]: ")
-    try:
-        return items[int(raw) - 1][0]
-    except (ValueError, IndexError):
-        return None
+    idx = pick_index(label, [(name, desc) for name, desc in items])
+    return None if idx is None else items[idx][0]
 
 
 # -- setup wizard ------------------------------------------------------------
