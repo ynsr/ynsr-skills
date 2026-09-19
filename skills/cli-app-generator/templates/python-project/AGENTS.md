@@ -3,27 +3,27 @@
 ## Build / test / run
 
 ```bash
-uv sync                      # create .venv with deps
-uv run pytest                # full suite (offline; httpx.MockTransport)
-uv run pytest tests/unit -q  # unit only
-uv run pytest --cov=mycli    # coverage (target >=75% on core logic)
+uv sync        # .venv with locked deps
+make check     # ruff + pytest + scripts/verify-cli (probes: "list widgets", "profile remove demo")
+uv run pytest -q
 ```
 
-All tests pass offline — HTTP is mocked with httpx.MockTransport. Never write tests that hit a real server.
+All tests pass offline — HTTP is mocked with httpx.MockTransport; never write tests that hit a real server.
 
-## Architecture (end-to-end)
+## Architecture
 
-1. `cli.py` — Typer app; parses args, resolves active profile via `config.resolve_profile()`, dispatches to ops, prints CSV/JSON to stdout / logs to stderr.
-2. `config.py` — profile store: `~/.config/mycli/profiles/*.json` (0600). Resolution order: env vars > `--profile` flag > default profile. Raises `ProfileError` with actionable messages.
-3. `client.py` — httpx.Client wrapper: injects Bearer auth, normalizes `socks://` proxy env to `socks5://` before client build, retry with exponential backoff on 5xx/429/timeouts/connect errors, request+response logging to stderr when verbose.
-4. `ops.py` — business operations shared by CLI and tests: request builders, response parsing, error mapping.
-5. `completions.py` + `cli.py` completions group — shell scripts via Click (`show`), idempotent rc install (`install`), `autocompletion=` value callbacks (profiles). No hand-coded ordering.
-6. `doctor.py` + `cli.py` doctor command — install-receipt self-check: compares `~/.local/share/mycli/install-receipt.json` (written by install.sh; SHA-256 over source `*.py`, 12 hex chars) against the live tree; exit 0 in sync / 1 stale-missing with the fix command. Keep the hashing identical to install.sh.
+1. `cli.py` — typer app; `main()` (the console entry) catches errors into the
+   `{"error":{"code","message","hint"}}` stderr envelope; exit 0/1/2/3/4 documented in `--help`.
+   The demo `list` is offline on purpose (verify-cli must pass without network/profiles).
+2. `output.py` — `emit()` prints rows as table/csv/tsv/json (plain text, box-free); `fail()`
+   prints the envelope for agents (non-TTY or `--json`), a plain line + hint for humans.
+3. `config.py` — pydantic v2 Profile; 0600 JSON files under platformdirs dir (`MYCLI_CONFIG_DIR`
+   overrides); `config.toml` default; `resolve_profile()` precedence flag > env > default.
+4. `client.py` — httpx factory (+socks), Bearer auth, tenacity retry on 429/502/503/504 and
+   transport errors; `APIError` code "network" maps to exit 3.
+5. `doctor.py` — status-only: first line `status: ok|missing`, `--json` single line; never "stale".
 
 ## Conventions
 
-- Primary audience: AI agents — CSV with a header row defaults for lists/structured data; `--json` opts into JSON.
-- stdout carries ONLY command output (CSV/JSON); every log/progress line goes to stderr — `--json` pipes into `jq` must never break.
-- Destructive ops require `--yes` non-interactively; a missing `--yes` exits 2 (usage).
-- Exit codes: 0 success · 1 general/runtime error · 2 usage error · 3 network/timeout.
-- No credentials in code or tests; profile files hold them locally under the user's config dir only.
+- stdout data only; delete superseded code instead of deprecating; keep every command within the
+  documented exit codes and the secrets-never-in-flags rule.

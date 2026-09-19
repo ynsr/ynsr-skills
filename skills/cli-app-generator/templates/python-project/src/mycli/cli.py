@@ -1,298 +1,258 @@
-"""Typer app: commands, output formatting (CSV default / --json), setup wizard.
+"""mycli: typer CLI + error envelope. The demo `list` is offline; wire client.Client for your API."""
 
-stdout carries ONLY command output; every log/progress line goes to stderr.
-"""
-
-from __future__ import annotations
-
-import csv
 import json
 import os
 import sys
-from typing import Optional
+from enum import StrEnum
+from typing import Annotated
 
+import httpx
+import pydantic
 import typer
+import typer.completion as _typer_completion
 
-from . import completions as _completions
-from . import doctor as _doctor
-from . import ops
-from .client import Client, NetworkError, SolrHTTPError
-from .config import Profile, ProfileError, get_default, list_profiles, load_profile, resolve_profile, save_profile, set_default
-from .pick import pick_index
+# typer >=0.27: add_completion=False never registers shell completion classes, so the env-var
+# completion server dies with "Shell bash not supported." (spike B; live on 0.27.0 AND 0.27.2).
+_typer_completion.completion_init()
+from typer._click.core import Abort as _ClickAbort  # typer 0.27 vendors click (spike B)
+from typer._click.core import Exit as _ClickExit
+from typer._click.exceptions import ClickException, NoArgsIsHelpError, UsageError
 
-__version__ = "0.1.0"
-
-EXIT_OK, EXIT_GENERAL, EXIT_USAGE, EXIT_NETWORK = 0, 1, 2, 3
-
-_complete_profiles = _completions.complete_names(list_profiles)
-
-app = typer.Typer(
-    name="mycli",
-    help="One-line tool description.",
-    no_args_is_help=True,
-    add_completion=False,  # single completion system: `completions show|install` (see completions.py)
-    context_settings={"help_option_names": ["-h", "--help"]},
-    pretty_exceptions_enable=False,
+from . import __version__
+from .config import (
+    Profile,
+    default_profile_name,
+    list_profiles,
+    load_profile,
+    profile_path,
+    save_profile,
+    set_default_profile,
 )
-profile_app = typer.Typer(help="Manage saved connection profiles.", no_args_is_help=True)
+from .doctor import run as doctor_run
+from .output import CliError, emit, fail
+
+
+class Shell(StrEnum):
+    bash = "bash"
+    zsh = "zsh"
+    fish = "fish"
+
+
+app = typer.Typer(add_completion=False, no_args_is_help=True, pretty_exceptions_enable=False, help=(
+    "mycli — data-plane CLI for a profile-backed API (the demo `list` source is offline).\n\n"
+    "Exit codes: 0 success, 1 error, 2 usage, 3 network, 4 partial."
+))
+
+profile_app = typer.Typer(help="Manage connection profiles (0600 files; secrets via env or hidden prompt).")
 app.add_typer(profile_app, name="profile")
 
 
-def _version_callback(value: bool) -> None:
+def _interactive() -> bool:
+    """TTY stdin, prompting not disabled (MYCLI_NO_INPUT or CI set → never prompt)."""
+    return sys.stdin.isatty() and not os.environ.get("MYCLI_NO_INPUT") and not os.environ.get("CI")
+
+
+def _pick(message: str, choices: list[tuple[str, str | None]]) -> str | None:
+    """questionary select rendered on stderr; None on non-TTY / Ctrl-C / EOF (spike A wrapper)."""
+    if not sys.stdin.isatty():
+        return None
+    from prompt_toolkit.application import create_app_session
+    from prompt_toolkit.output import create_output
+    from questionary import Choice, select
+
+    opts = [Choice(k, value=k, description=d) if d else Choice(k, value=k) for k, d in choices]
+    try:
+        with create_app_session(output=create_output(stdout=sys.stderr)):
+            return select(message, choices=opts).ask()
+    except (KeyboardInterrupt, EOFError):
+        return None
+
+
+def _complete_profiles(incomplete: str = "") -> list[str]:
+    """Dynamic completion: profile names from local state; [] on any failure, never blocks."""
+    try:
+        return [p.name for p in list_profiles() if p.name.startswith(incomplete)]
+    except Exception:
+        return []
+
+
+def _set_no_color(value: bool) -> None:
+    if value:
+        os.environ["NO_COLOR"] = "1"
+
+
+def _print_version(value: bool) -> None:
     if value:
         print(f"mycli {__version__}")
-        raise typer.Exit(0)
+        raise typer.Exit()
+
+
+Output = Annotated[str | None, typer.Option("--output", "-o", help="table|json|csv|tsv", envvar="MYCLI_OUTPUT")]
+Json = Annotated[bool, typer.Option("--json", help="alias for --output json")]
+Fields = Annotated[str | None, typer.Option("--fields", help="comma-separated output columns")]
+Limit = Annotated[int, typer.Option(min=0, help="max rows (0 = all)")]
+NoColor = Annotated[bool, typer.Option("--no-color", callback=_set_no_color, is_eager=True,
+                                       help="disable styling (NO_COLOR/TERM=dumb honored too)")]
 
 
 @app.callback()
-def _main(
-    version: Optional[bool] = typer.Option(None, "--version", callback=_version_callback, is_eager=True, help="Show version and exit."),
+def _globals(
+    version: Annotated[bool, typer.Option("--version", callback=_print_version, is_eager=True,
+                                          help="print version and exit")] = False,
+    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="log details to stderr",
+                                          envvar="MYCLI_VERBOSE")] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="shorter errors: no hints",
+                                        envvar="MYCLI_QUIET")] = False,
+    no_input: Annotated[bool, typer.Option("--no-input", help="never prompt; fail instead",
+                                           envvar="MYCLI_NO_INPUT")] = False,
+    no_color: NoColor = False,
 ) -> None:
-    """Global options."""
+    for flag, var in ((verbose, "MYCLI_VERBOSE"), (quiet, "MYCLI_QUIET"), (no_input, "MYCLI_NO_INPUT")):
+        if flag:
+            os.environ[var] = "1"
 
 
-def _fail(msg: str, code: int) -> None:
-    print(f"error: {msg}", file=sys.stderr)
-    raise typer.Exit(code)
-
-
-def _echo_json(payload) -> None:
-    print(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
-
-
-def _emit_rows(rows: list[dict], json_output: bool, keys: list[str] | None = None) -> None:
-    """List output: CSV with header row by default, JSON with --json."""
-    if json_output:
-        _echo_json(rows)
-        return
-    if not rows:
-        return
-    if keys is None:
-        keys = list(rows[0].keys())
-    w = csv.writer(sys.stdout)
-    w.writerow(keys)
-    for r in rows:
-        w.writerow([r.get(k, "") for k in keys])
-
-
-def _interactive_pick(label: str, options: dict[str, str]) -> str | None:
-    """Arrow-key selection when stdin is a TTY; None otherwise.
-
-    ``options`` maps choice → description (rendered dim after the item).
-    """
-    items = list(options.items())
-    idx = pick_index(label, [(name, desc) for name, desc in items])
-    return None if idx is None else items[idx][0]
-
-
-# -- setup wizard ------------------------------------------------------------
-
-
-@app.command("init")
-def init(
-    name: str = typer.Argument("default", help="Profile name — new, or an existing one to update (prompts prefill from it)."),
-    url: Optional[str] = typer.Option(None, "--url", help="Source base URL (prompted if omitted)."),
-    token: Optional[str] = typer.Option(None, "--token", help="API token (prompted if omitted; prefer MYCLI_TOKEN env)."),
-    no_completion: bool = typer.Option(False, "--no-completion", help="Skip the shell-completion install prompt at the end."),
-) -> None:
-    """Setup wizard: create or update a profile, mark it default, verify with one live call.
-
-    Example:
-      mycli init                     # profile 'default', prompted for URL + token
-      mycli init prod --url https://prod.example
-      mycli init default             # re-run against an existing profile to update it
-    """
-    import getpass
-
-    existing = load_profile(name) if name in list_profiles() else None
-    url_val = url or typer.prompt("Source base URL", default=existing.url if existing else None)
-    tok = (token
-           or os.environ.get("MYCLI_TOKEN")
-           or getpass.getpass("API token (enter to keep existing): ")
-           or (existing.token if existing else None))
-    prof = existing or Profile(name=name, url=url_val, token=tok)
-    prof.url, prof.token = url_val, tok
-    save_profile(prof)
-    set_default(name)
-    try:
-        with Client(resolve_profile(None)) as client:
-            ops.health_check(client)   # one cheap authenticated call
-        print(f"OK: profile '{name}' {'updated' if existing else 'created'} as default and verified.")
-    except (NetworkError, SolrHTTPError, ProfileError) as exc:
-        _fail(f"profile saved but verification failed: {exc}", EXIT_NETWORK)
-    if not no_completion and sys.stdin.isatty():
-        shell = _completions.detect_shell()
-        if shell and typer.confirm(f"Install shell completion for {shell}?", default=False):
-            rc, changed = _completions.install_completion("mycli", shell, None)
-            if changed:
-                _completions.print_install_hint("mycli", shell, rc)
-
-
-# -- example data command: CSV default, --json opt-in -------------------------
+DEMO_ROWS = [  # stub: replace with Client(resolve_profile()).request("GET", f"/{resource}") for your API
+    {"id": 1, "name": "alpha", "size": 10, "created": "2026-09-20T00:00:00Z"},
+    {"id": 2, "name": "beta", "size": 20, "created": "2026-09-20T00:00:01Z"},
+    {"id": 3, "name": "gamma", "size": 30, "created": "2026-09-20T00:00:02Z"},
+]
 
 
 @app.command("list")
 def list_cmd(
-    resource: str = typer.Argument(..., help="Resource to list."),
-    json_output: bool = typer.Option(False, "--json", help="JSON instead of CSV."),
-    profile_name: Optional[str] = typer.Option(None, "--profile", "-p", envvar="MYCLI_PROFILE", autocompletion=_complete_profiles, help="Profile to use (default: stored default)."),
-    timeout: Optional[float] = typer.Option(None, "--timeout", help="Per-request timeout seconds."),
-    retries: Optional[int] = typer.Option(None, "--retries", min=0, help="Retries on 5xx/429/timeouts."),
+    resource: Annotated[str, typer.Argument(help="resource to list (demo source; wire to your API)")],
+    fields: Fields = None,
+    limit: Limit = 0,
+    output: Output = None,
+    as_json: Json = False,
+    no_color: NoColor = False,
 ) -> None:
-    """List items from the source (CSV with headers by default).
-
-    Example:
-      mycli list widgets
-      mycli list widgets --json | jq '.[0]'
-      mycli list widgets --profile other-org
-    """
-    try:
-        profile = resolve_profile(profile_name)
-    except ProfileError as exc:
-        # interactive pick when nothing was resolved and we're on a TTY
-        chosen = _interactive_pick("Available profiles:", {n: p.url for n, p in list_profiles().items()})
-        if chosen is None:
-            _fail(str(exc), EXIT_USAGE)
-        profile = resolve_profile(chosen)
-
-    def do(client: Client):
-        rows = ops.list_resource(client, resource, timeout=timeout, retries=retries)
-        _emit_rows(rows, json_output)
-
-    try:
-        with Client(profile) as client:
-            do(client)
-    except ProfileError as exc:
-        _fail(str(exc), EXIT_USAGE)
-    except NetworkError as exc:
-        _fail(str(exc), EXIT_NETWORK)
-    except SolrHTTPError as exc:
-        _fail(str(exc), EXIT_GENERAL)
-
-
-# -- profile management -------------------------------------------------------
+    """List rows as data on stdout."""
+    rows = DEMO_ROWS[:limit] if limit else DEMO_ROWS
+    chosen = [f.strip() for f in fields.split(",") if f.strip()] if fields else None
+    emit(rows, output or ("json" if as_json else None), chosen)
 
 
 @profile_app.command("create")
 def profile_create(
-    name: str = typer.Argument(..., help="Profile name."),
-    url: str = typer.Option(..., "--url", help="Source base URL."),
-    token: str = typer.Option(None, "--token", help="API token (omit: prompted via getpass; prefer piping)."),
-    set_default_flag: bool = typer.Option(False, "--default", help="Mark as the default profile."),
+    name: Annotated[str, typer.Argument(help="profile name")],
+    url: Annotated[str, typer.Option("--url", help="API base URL (http/https)")],
+    default: Annotated[bool, typer.Option("--default", help="make this the default profile")] = False,
+    no_color: NoColor = False,
 ) -> None:
-    """Save a connection profile (stored 0600 under ~/.config/mycli/profiles/)."""
-    import getpass
+    """Save a profile; token comes from MYCLI_TOKEN or a hidden prompt (TTY only)."""
+    token = os.environ.get("MYCLI_TOKEN", "")
+    if not token and _interactive():
+        import getpass
 
-    tok = token or getpass.getpass("API token (empty = none): ")
-    save_profile(Profile(name=name, url=url, token=tok))
-    if set_default_flag:
-        set_default(name)
-    print(f"saved profile '{name}'" + (" (default)" if set_default_flag else ""))
+        token = getpass.getpass("API token (input hidden, Enter to skip): ")
+    try:
+        profile = Profile(name=name, url=url, token=token)
+    except pydantic.ValidationError as e:
+        raise CliError(f"invalid profile: {e.errors()[0]['msg']}", "usage",
+                       "url must start with http:// or https://", 2) from e
+    save_profile(profile)
+    if default:
+        set_default_profile(name)
+    print(profile_path(name))
 
 
 @profile_app.command("list")
-def profile_list() -> None:
-    """List saved profiles."""
-    profiles = list_profiles()
-    default = get_default()
-    for name, p in profiles.items():
-        star = "*" if name == default else " "
-        print(f"{star} {name}  {p.url}")
-
-
-@profile_app.command("use")
-def profile_use(name: str = typer.Argument(..., autocompletion=_complete_profiles)) -> None:
-    """Set the default profile."""
-    if name not in list_profiles():
-        _fail(f"profile '{name}' not found", EXIT_USAGE)
-    set_default(name)
-    print(f"default profile: {name}")
+def profile_list(output: Output = None, as_json: Json = False, no_color: NoColor = False) -> None:
+    """List stored profiles (the token is never printed)."""
+    rows = [{"name": p.name, "url": str(p.url), "default": p.name == default_profile_name()}
+            for p in list_profiles()]
+    emit(rows, output or ("json" if as_json else None))
 
 
 @profile_app.command("remove")
-def profile_remove(name: str = typer.Argument(..., autocompletion=_complete_profiles), yes: bool = typer.Option(False, "--yes", help="Skip confirmation.")) -> None:
-    """Delete a profile."""
-    if not yes and not typer.confirm(f"Remove profile '{name}'?"):
-        raise typer.Exit(EXIT_USAGE)
-    from .config import delete_profile
-    delete_profile(name)
-    print(f"removed '{name}'")
-
-
-# -- shell completion ---------------------------------------------------------
-
-completions_app = typer.Typer(help="Shell completion: print the init script or install it into your rc file.", no_args_is_help=True)
-app.add_typer(completions_app, name="completions")
-
-
-@completions_app.command("show")
-def completions_show(
-    shell: str = typer.Argument(..., help="Shell to print the init script for (bash, zsh, fish)."),
+def profile_remove(
+    name: Annotated[str | None, typer.Argument(help="profile name (picked interactively on a TTY)",
+                                                  autocompletion=_complete_profiles)] = None,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="print the plan, change nothing")] = False,
+    yes: Annotated[bool, typer.Option("--yes", help="execute without prompting")] = False,
+    no_color: NoColor = False,
 ) -> None:
-    """Print the shell init script — source it via eval in your rc file.
+    """Remove a profile: --dry-run previews, --yes executes; non-TTY never prompts."""
+    if name is None:
+        if not _interactive():
+            raise CliError("profile name required", "usage",
+                           "profile remove <name> --dry-run (see profile list)", 2)
+        name = _pick("Remove which profile?", [(p.name, p.url) for p in list_profiles()])
+        if name is None:
+            raise CliError("no profile selected", "usage", "name the profile: profile remove <name>", 2)
+    stored = load_profile(name)
+    if dry_run:
+        print(f"would remove profile '{name}'"
+              + (f" ({profile_path(name)})" if stored else " (not present, nothing to do)"))
+        return
+    if not yes:
+        raise CliError(f"refusing to remove profile '{name}' without --yes", "usage",
+                       "--dry-run previews the plan; --yes executes", 2)
+    if stored is None:
+        raise CliError(f"no such profile: {name}", "error", "profile list shows stored names", 1)
+    profile_path(name).unlink()
+    print(f"removed {profile_path(name)}")
 
-    Example:
-      eval "$(mycli completions show bash)"   # ~/.bashrc
-      eval "$(mycli completions show zsh)"    # ~/.zshrc
-      mycli completions show fish | source    # fish config
-    """
-    import typer.main as _typer_main
 
-    try:
-        script = _completions.get_completion_script("mycli", shell, click_cmd=_typer_main.get_command(app))
-    except ValueError as exc:
-        _fail(str(exc), EXIT_USAGE)
-    print(script, end="" if script.endswith("\\n") else "\\n")
-
-
-@completions_app.command("install")
-def completions_install(
-    shell: Optional[str] = typer.Argument(None, help="Shell to install for (bash, zsh, fish). Omit: detect from $SHELL."),
-    rcfile: Optional[str] = typer.Option(None, "--rcfile", help="Rc file to edit (default: ~/.bashrc, ~/.zshrc, fish config)."),
-    yes: bool = typer.Option(False, "--yes", help="Skip confirmation (needed for non-interactive/agent use)."),
+@app.command()
+def doctor(
+    as_json: Annotated[bool, typer.Option("--json", help="single-line status dict (cli-hub contract)")] = False,
+    no_color: NoColor = False,
 ) -> None:
-    """Install the eval line into your rc file (idempotent; keeps a .bak backup).
-
-    Example:
-      mycli completions install          # detect shell from $SHELL
-      mycli completions install bash     # explicit shell
-      mycli completions install zsh --rcfile ~/.zshrc --yes
-    """
-    from pathlib import Path as _Path
-
-    resolved = shell or _completions.detect_shell()
-    if resolved is None:
-        _fail(f"cannot detect shell from $SHELL={os.environ.get('SHELL', '')!r}; pass bash, zsh, or fish explicitly", EXIT_USAGE)
-    if not yes and sys.stdin.isatty() and not typer.confirm(f"Add mycli completion to your {resolved} rc file?"):
-        raise typer.Exit(EXIT_USAGE)
-    try:
-        rc, changed = _completions.install_completion("mycli", resolved, _Path(rcfile) if rcfile else None)
-    except ValueError as exc:
-        _fail(str(exc), EXIT_USAGE)
-    if changed:
-        _completions.print_install_hint("mycli", resolved, rc)
-    else:
-        print(f"already installed in {rc}", file=sys.stderr)
+    """Self-check: prints 'status: ok|missing' (exit 0|1); stale is never emitted."""
+    raise SystemExit(doctor_run(as_json))
 
 
-@app.command("doctor")
-def doctor() -> None:
-    """Check the installed copy is in sync with the source tree.
+@app.command()
+def schema(no_color: NoColor = False) -> None:
+    """Dump command/parameter introspection + profile JSON Schema (agent audience)."""
+    import typer.main
 
-    Example: mycli doctor
+    root = typer.main.get_command(app)
+    commands = {
+        name: [{"option": f"--{p.name.replace('_', '-')}", "type": p.type.name,
+                "required": p.required, "help": p.help or ""} for p in sub.params]
+        for name, sub in getattr(root, "commands", {}).items()
+    }
+    print(json.dumps({"name": "mycli", "version": __version__,
+                      "commands": commands, "profile_schema": Profile.model_json_schema()}, indent=2))
 
-    Exit codes: 0 in sync · 1 stale/missing receipt (fix: ./install.sh).
-    """
-    status, message = _doctor.check()
-    print(message)
-    if status != _doctor.OK:
-        raise typer.Exit(EXIT_GENERAL)
+
+@app.command("completion")
+def completion_cmd(
+    shell: Annotated[Shell, typer.Argument(help="bash | zsh | fish")],
+) -> None:
+    """Print a completion script (install.sh drops it into your shell's autoload dir)."""
+    from typer.completion import get_completion_script
+
+    print(get_completion_script(prog_name="mycli", complete_var="_MYCLI_COMPLETE", shell=shell.value))
 
 
 def main() -> None:
-    _completions.ensure_completion_classes()  # typer 0.27: runtime server needs registered classes
-    app()
+    """Console entry: envelope errors for agents (non-TTY/--json), plain + hint for humans."""
+    try:
+        app(standalone_mode=False)
+    except (_ClickExit, typer.Exit) as e:
+        raise SystemExit(getattr(e, "exit_code", 0)) from e
+    except NoArgsIsHelpError:
+        fail("no command given", "usage", "run with --help for usage", 2)
+    except UsageError as e:
+        fail(f"{e}".strip() or "invalid usage", "usage", "run with --help for usage", 2)
+    except ClickException as e:
+        fail(f"{e}".strip() or "error", "error", "run with --help", 2)
+    except (typer.Abort, _ClickAbort, EOFError):
+        fail("aborted", "aborted", "", 1)
+    except CliError as e:
+        fail(str(e), e.code, e.hint, e.status)
+    except httpx.TransportError as e:
+        fail(f"network: {e}", "network", "check connectivity, proxy env, or profile timeout", 3)
+    except KeyboardInterrupt:
+        raise SystemExit(130) from None
+    except Exception as e:  # envelope contract: never a raw traceback (unless -v)
+        if os.environ.get("MYCLI_VERBOSE"):
+            import traceback
 
-
-if __name__ == "__main__":
-    main()
+            traceback.print_exc(file=sys.stderr)
+        fail(str(e) or repr(e), "error", "re-run with -v for a traceback", 1)

@@ -1,59 +1,43 @@
 # mycli
 
-One-line description: what it talks to and what it does.
+Data-plane CLI for a profile-backed API; agent-first (clean stdout, JSON envelopes, exit codes).
 
 ## Install
 
 ```bash
-uv tool install .            # or: pipx install .
-uv sync                      # dev: venv + deps
-uv run pytest                # tests (offline; HTTP mocked)
+./install.sh     # uv tool install --editable . + shell completions + cli-hub register (idempotent)
 ```
+
+Dev: `uv sync` (venv + deps), then `make check` — ruff + pytest + `scripts/verify-cli`.
+Tests are offline; HTTP is mocked with httpx.MockTransport.
 
 ## Quick start
 
 ```bash
-mycli init                                        # setup wizard: endpoint + token, saved as default
-mycli list widgets                                # CSV with headers (default)
-mycli list widgets --json | jq '.[0]'             # JSON instead
-mycli profile create prod --url https://prod.example --default
-mycli list widgets -p prod                        # switch org via --profile
-mycli completions install                          # Tab completion: detects shell, edits rc idempotently
-mycli doctor                                       # install receipt vs source tree: 0 in sync, 1 stale
+mycli list widgets --output json | jq '.[0]'   # demo rows — wire client.Client for your API
+mycli list widgets --fields id,name --limit 2
+mycli profile create prod --url https://prod.example --default   # token via MYCLI_TOKEN or hidden prompt
+mycli profile list                               # token never printed
+mycli profile remove prod --dry-run              # preview the plan; add --yes to execute
+mycli doctor                                     # status: ok|missing
+mycli schema                                     # machine-readable commands + profile JSON Schema
+mycli completion bash                            # also dropped by install.sh (bash/zsh/fish)
 ```
 
-## Shell completion
+`--output table|json|csv|tsv` (+ `--json` alias) on list-style output; agent default csv.
 
-```bash
-eval "$(mycli completions show bash)"   # ~/.bashrc
-eval "$(mycli completions show zsh)"    # ~/.zshrc (compinit handled by install)
-mycli completions show fish | source    # fish config
-```
-`mycli completions install [bash|zsh|fish]` writes the eval line into your rc
-file (`--rcfile` to override, `--yes` to skip confirmation); re-running is a
-no-op. Subcommands and `--flags` complete automatically; profile/resource
-values complete from local state (Tab cycles them like `git branch`).
-Tradeoff: the eval line spawns Python on each new shell (~200–400ms) but never
-goes stale when commands change.
+## Contract
 
-## Configuration
+- stdout carries data only; logs, prompts, errors → stderr. Errors: agents (non-TTY or `--json`)
+  get `{"error":{"code","message","hint"}}` with a matching exit code; humans get a plain line + hint.
+- Exit codes: 0 success · 1 error · 2 usage · 3 network · 4 partial. `-v` adds a traceback,
+  `-q` drops hints, `--no-input`/`CI`/non-TTY never prompt.
+- Secrets live only in 0600 profile files or env (`MYCLI_TOKEN`) — never in flags, logs, or code.
+  Precedence: `MYCLI_PROFILE` env > ephemeral `MYCLI_URL`/`MYCLI_TOKEN` > stored default profile.
+- `NO_COLOR`, `TERM=dumb`, and `--no-color` suppress all styling.
 
-| Precedence | Source | Example |
-|---|---|---|
-| 1 | CLI flag | `--profile prod`, `--timeout 10` |
-| 2 | Env var | `MYCLI_URL`, `MYCLI_TOKEN`, `MYCLI_PROFILE` |
-| 3 | Default profile | `mycli profile use prod` |
-| 4 | Built-in | `timeout 30s`, `retries 3` |
+## Wiring your API
 
-Profiles are JSON files (0600) under `~/.config/mycli/profiles/` — secrets never
-appear in flags (shell history), logs, or code. Override the dir with
-`MYCLI_CONFIG_DIR`.
-
-## Exit codes
-
-`0` success · `1` runtime error · `2` usage error · `3` network/timeout.
-
-## Security notes
-
-- Tokens live only in 0600 profile files or env vars — never in flags, logs, or code.
-- Proxy env with bare `socks://` is normalized to `socks5://` automatically (httpx compatibility).
+Replace the `DEMO_ROWS` stub in `cli.list_cmd` with
+`Client(resolve_profile()).request("GET", f"/{resource}")` — retry, Bearer auth, socks-proxy
+normalization, and network exit code 3 are already handled by `client.py`.

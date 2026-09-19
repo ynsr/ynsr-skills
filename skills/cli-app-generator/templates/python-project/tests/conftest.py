@@ -1,16 +1,13 @@
-"""Shared fixtures: isolated config dir, mock transport (no network)."""
+"""Shared fixtures: isolated config dir (ambient env purged), no network."""
 
 import sys
 from pathlib import Path
 
-import httpx
 import pytest
 
 SRC = Path(__file__).resolve().parents[1] / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
-
-import os
 
 from mycli import config as cfg
 
@@ -19,10 +16,12 @@ from mycli import config as cfg
 def isolated_config(tmp_path, monkeypatch):
     """Every test gets its own config dir; ambient env must not leak in."""
     monkeypatch.setenv("MYCLI_CONFIG_DIR", str(tmp_path / "cfg"))
-    for var in ("MYCLI_URL", "MYCLI_TOKEN", "MYCLI_USER", "MYCLI_PASS", "MYCLI_PROFILE",
-                "MYCLI_VERBOSE", "MYCLI_QUIET",
-                "ALL_PROXY", "all_proxy", "HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "NO_PROXY", "no_proxy"):
+    for var in ("MYCLI_URL", "MYCLI_TOKEN", "MYCLI_PROFILE", "MYCLI_OUTPUT", "MYCLI_LIMIT",
+                "MYCLI_VERBOSE", "MYCLI_QUIET", "MYCLI_NO_INPUT", "NO_COLOR", "CI",
+                "ALL_PROXY", "all_proxy", "HTTP_PROXY", "http_proxy",
+                "HTTPS_PROXY", "https_proxy", "NO_PROXY", "no_proxy"):
         monkeypatch.delenv(var, raising=False)
+    (tmp_path / "cfg").mkdir(parents=True, exist_ok=True)
     return tmp_path / "cfg"
 
 
@@ -34,7 +33,3 @@ def make_profile():
         return p
 
     return _make
-
-
-def docs_response(items, total=None):
-    return {"items": items, "total": total if total is not None else len(items)}

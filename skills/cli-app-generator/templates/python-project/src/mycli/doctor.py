@@ -1,102 +1,35 @@
-"""Install-sync self-check for mycli.
+"""Doctor: status-only self-check. First line `status: ok|missing` — cli-hub consumes it (never 'stale')."""
 
-install.sh snapshots the source into an isolated venv (uv/pipx) and writes
-an install receipt (~/.local/share/mycli/install-receipt.json) recording a
-hash over the source tree; `mycli doctor` compares that receipt against the
-live tree so "edited source, forgot to reinstall" is caught before it
-confuses anyone. The hashing here MUST stay identical to the snippet in
-install.sh.
-"""
-
-from __future__ import annotations
-
-import hashlib
+import importlib.util
 import json
-from pathlib import Path
+import tomllib
 
-TOOL = "mycli"
+from .config import config_dir
 
-OK, STALE, MISSING = "ok", "stale", "missing"
-
-
-def share_dir() -> Path:
-    """State dir (~/.local/share/mycli); honors $HOME so tests can redirect."""
-    return Path.home() / ".local" / "share" / TOOL
+_DEPS = ("typer", "httpx", "pydantic", "platformdirs", "questionary", "tenacity")
 
 
-def receipt_path() -> Path:
-    return share_dir() / "install-receipt.json"
-
-
-def source_hash(pkg_dir: Path) -> str:
-    """SHA-256 over source *.py (relative posix paths + bytes), 12 hex chars."""
-    digest = hashlib.sha256()
-    for f in sorted(pkg_dir.rglob("*.py")):
-        if ".venv" in f.parts:
-            continue
-        digest.update(f.relative_to(pkg_dir).as_posix().encode())
-        digest.update(f.read_bytes())
-    return digest.hexdigest()[:12]
-
-
-def load_receipt() -> dict | None:
-    """Parsed receipt, or None when absent/unreadable/invalid JSON."""
+def _missing_dep(name: str) -> str:
     try:
-        return json.loads(receipt_path().read_text())
-    except (OSError, ValueError):
-        return None
+        return "" if importlib.util.find_spec(name) else f"dep {name} not installed"
+    except (ImportError, ValueError):
+        return f"dep {name} not installed"
 
 
-def _source_tree(source_dir: Path) -> Path | None:
-    """Package dir inside a recorded source checkout (src/ or flat layout)."""
-    name = Path(__file__).resolve().parent.name
-    for candidate in (source_dir / "src" / name, source_dir / name):
-        if candidate.is_dir():
-            return candidate
-    return None
-
-
-def check() -> tuple[str, str]:
-    """Compare the install receipt against the live source tree.
-
-    Returns (status, message): status is "ok", "stale", or "missing";
-    the message names the fix command for non-ok statuses.
-    """
-    receipt = load_receipt()
-    if receipt is None:
-        return MISSING, "no install receipt — fix with: ./install.sh"
-    tree = _source_tree(Path(receipt.get("source_dir", "")))
-    if tree is None:
-        return MISSING, (
-            f"recorded source dir {receipt.get('source_dir', '?')!r} is gone — "
-            "fix with: ./install.sh from a valid checkout"
-        )
-    live = source_hash(tree)
-    if live != receipt.get("source_hash"):
-        return STALE, (
-            f"source changed since install ({receipt.get('source_hash')} → {live}) — "
-            "fix with: ./install.sh"
-        )
-    return OK, f"install in sync ({live})"
-
-
-def dev_warning(here: Path | None = None) -> str | None:
-    """Warning when running from a working tree that differs from the receipt.
-
-    Fires only when __file__ resolves outside the installed locations
-    (site-packages / ~/.local/share) — the installed copy never warns about
-    itself — and the running tree's hash differs from the install receipt.
-    None otherwise.
-    """
-    pkg_dir = (here or Path(__file__).resolve()).parent
-    if "site-packages" in pkg_dir.parts or ".local/share" in pkg_dir.parts:
-        return None
-    receipt = load_receipt()
-    if receipt is None:
-        return None
-    if source_hash(pkg_dir) != receipt.get("source_hash"):
-        return (
-            "warning: running mycli from the source tree, but the installed "
-            "copy is stale — fix with: ./install.sh"
-        )
-    return None
+def run(as_json: bool = False) -> int:
+    """Print status; return exit code (0 ok, 1 missing)."""
+    problems = [m for m in (_missing_dep(d) for d in _DEPS) if m]
+    try:
+        tomllib.loads((config_dir() / "config.toml").read_text())
+    except FileNotFoundError:
+        pass
+    except (tomllib.TOMLDecodeError, OSError) as e:
+        problems.append(f"config: {e}")
+    status = "ok" if not problems else "missing"
+    if as_json:
+        print(json.dumps({"status": status, "message": "; ".join(problems)}))
+    else:
+        print(f"status: {status}")
+        for problem in problems:
+            print(f"  FAIL {problem}")
+    return 1 if problems else 0
