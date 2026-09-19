@@ -1,0 +1,84 @@
+# test/tool.bats — unit + contract tests for the generated sample tool.
+setup() {
+    TESTDIR=$(mktemp -d)
+    BIN="$BATS_TEST_DIRNAME/../sample"
+    printf '{"name":"alice","role":"admin","active":true}\n' > "$TESTDIR/data.json"
+    printf '[1,2]\n' > "$TESTDIR/arr.json"
+}
+teardown() { rm -rf "$TESTDIR"; }
+
+@test "--help exits 0 and documents exit codes" {
+    run "$BIN" --help
+    [ "$status" -eq 0 ]
+    grep -qi "exit codes" <<<"$output"
+}
+
+@test "--version exits 0" {
+    run "$BIN" --version
+    [ "$status" -eq 0 ]
+}
+
+@test "show builtin sample as table (aligned, header row)" {
+    run "$BIN" show
+    [ "$status" -eq 0 ]
+    grep -q '^NAME' <<<"$output"
+    grep -q 'alice' <<<"$output"
+}
+
+@test "show csv/tsv have header rows" {
+    run "$BIN" show "$TESTDIR/data.json" -o csv
+    [ "$status" -eq 0 ]
+    [ "${lines[0]}" = "name,value" ]
+    run "$BIN" show "$TESTDIR/data.json" -o tsv
+    [ "$status" -eq 0 ]
+    [ "${lines[0]}" = "$(printf 'name\tvalue')" ]
+}
+
+@test "show --json alias emits parseable JSON" {
+    run "$BIN" show "$TESTDIR/data.json" --json
+    [ "$status" -eq 0 ]
+    jq -e 'type == "array" and .[0].key == "name"' <<<"$output" >/dev/null
+}
+
+@test "show non-object JSON fails with envelope (exit 1)" {
+    run "$BIN" show "$TESTDIR/arr.json"
+    [ "$status" -eq 1 ]
+    grep -q '"error"' <<<"$output"
+}
+
+@test "unknown command exits 2 with envelope" {
+    run "$BIN" nope
+    [ "$status" -eq 2 ]
+    grep -q '"code":"usage"' <<<"$output"
+}
+
+@test "delete refuses without --yes and keeps the file" {
+    run "$BIN" delete "$TESTDIR/data.json"
+    [ "$status" -eq 2 ]
+    [ -f "$TESTDIR/data.json" ]
+}
+
+@test "delete --dry-run prints plan on stdout, keeps the file" {
+    run "$BIN" delete "$TESTDIR/data.json" --dry-run
+    [ "$status" -eq 0 ]
+    grep -q '^plan: rm' <<<"$output"
+    [ -f "$TESTDIR/data.json" ]
+}
+
+@test "delete --yes removes the file" {
+    run "$BIN" delete "$TESTDIR/data.json" --yes
+    [ "$status" -eq 0 ]
+    [ ! -f "$TESTDIR/data.json" ]
+}
+
+@test "completions emit a non-empty static bash script" {
+    run "$BIN" completions
+    [ "$status" -eq 0 ]
+    grep -q 'completions' <<<"$output"
+}
+
+@test "NO_COLOR run carries no ANSI escapes" {
+    NO_COLOR=1 TERM=dumb run "$BIN" show
+    [ "$status" -eq 0 ]
+    [[ "$output" != *$'\e['* ]]
+}
