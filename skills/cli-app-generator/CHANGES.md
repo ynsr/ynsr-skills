@@ -25,6 +25,6 @@ One line per removal/replacement during the v2 redesign: `- <what> → <replacem
 - templates/python-single-file error path (`error: …` print + exit) → `{"error":{code,message,hint}}` envelope on stderr (non-TTY or `--output json`) : contract §4.1.7; verify-cli check 6 green
 - templates/python-single-file agent list extras (`--fields`/`--limit`) → deleted : compact tier keeps the read command minimal; pagination/field selection belongs to the project tier
 - templates/python-single-file install.sh cp+receipt → `ln -sfn` symlink + best-effort `cli-hub register --source-path tool.py`; uninstall.sh → rm + unregister : DECISIONS row C
-- templates/python-single-file tool.py 441 + install/uninstall 103 → 147 + 19 + 8 = 174 LOC : spec §4.3 budget 175
+- templates/python-single-file tool.py 441 + install/uninstall 103 → 148 + 19 + 8 = 175 LOC : spec §4.3 budget 175
 - templates/bash (new) → bashly-generated single-file skeleton (140 LOC: yml 48 + handlers 43 + contract 15 + settings/install/uninstall/README): spike D — `completions` (static, ble.sh-sourced OK), unknown-command→exit 2 envelope, verify-cli 11/11
 - templates/go (new) → cobra+fang+go-pretty skeleton, main.go 166 + go.mod 36 + README/AGENTS/install/uninstall 49, httpx.go retry helper 36-significant-LOC: spike E — envelope via fang error handler, own RetryClient (server-proven 500→500→200), verify-cli 11/11; spec §4.3 6-file sum 251 > 185 (go.mod 22 indirect lines + fang/cobra import block) — main.go ≤ 185 satisfied, flagged in task-12-report.md
