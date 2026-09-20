@@ -1,0 +1,29 @@
+# copier template config — python-single-file tier (DECISIONS row F scaffolder).
+# Default Jinja delimiters: no generated file contains {{ }} / {% %} sequences.
+_min_copier_version: "9.0.0"
+
+# Jinja: trim/lstrip block tags so {% if %} lines vanish entirely (no stray blank lines).
+_jinja_extensions: []
+_envops:
+  trim_blocks: true
+  lstrip_blocks: true
+
+# NOTE: _exclude REPLACES copier's default exclude list — copier.yml must be re-listed.
+_exclude:
+  - copier.yml
+  - "~*"
+  - "*.py[co]"
+  - __pycache__
+  - .git
+  - .DS_Store
+  - .svn
+
+name:
+  type: str
+  default: mytool
+  help: tool name — lowercase letters/digits/underscore; it is the symlink name and env-var prefix
+audience:
+  type: str
+  choices: [human, agent]
+  default: human
+  help: primary audience (agent → csv default output; recorded in the --help epilog)

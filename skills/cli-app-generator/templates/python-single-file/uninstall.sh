@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-# uninstall.sh — reverse install.sh: drop the ~/.local/bin symlink + cli-hub entry; idempotent.
-# Config/env and uv's dependency cache are untouched.
-set -euo pipefail
-TOOL="<tool>"
-rm -f "${HOME}/.local/bin/${TOOL}"
-command -v cli-hub >/dev/null 2>&1 && cli-hub unregister "${TOOL}" --yes 2>/dev/null || true
-echo "==> <tool> removed (symlink + registry; nothing else was created)"

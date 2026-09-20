@@ -1,0 +1,55 @@
+# {{ name }}
+
+{% if profiles %}
+Data-plane CLI for a profile-backed API; agent-first (clean stdout, JSON envelopes, exit codes).
+{% else %}
+Data-plane CLI demo; agent-first (clean stdout, JSON envelopes, exit codes).
+{% endif %}
+
+## Install
+
+```bash
+./install.sh     # uv tool install --editable . + shell completions + cli-hub register (idempotent)
+```
+
+Dev: `uv sync` (venv + deps), then `make check` — ruff + pytest + `scripts/verify-cli`.
+Tests are offline; HTTP is mocked with httpx.MockTransport.
+
+## Quick start
+
+```bash
+{{ name }} list widgets --output json | jq '.[0]'   # demo rows — wire client.Client for your API
+{{ name }} list widgets --fields id,name --limit 2
+{% if profiles %}
+{{ name }} profile create prod --url https://prod.example --default   # token via {{ env_prefix }}_TOKEN or hidden prompt
+{{ name }} profile list                               # token never printed
+{{ name }} profile remove prod --dry-run              # preview the plan; add --yes to execute
+{% endif %}
+{{ name }} doctor                                     # status: ok|missing
+{{ name }} schema                                     # machine-readable commands{% if profiles %} + profile JSON Schema{% endif %}
+{{ name }} completion bash                            # also dropped by install.sh (bash/zsh/fish)
+```
+
+`--output table|json|csv|tsv` (+ `--json` alias) on list-style output;{% if audience == 'agent' %} agent default csv{% else %} human default table{% endif %}.
+
+## Contract
+
+- stdout carries data only; logs, prompts, errors → stderr. Errors: agents (non-TTY, or JSON
+  output requested: `--json` / `--output json` / `{{ env_prefix }}_OUTPUT=json`)
+  get `{"error":{"code","message","hint"}}` with a matching exit code; humans get a plain line + hint.
+- Exit codes: 0 success · 1 error · 2 usage · 3 network · 4 partial. `-v` adds a traceback,
+  `-q` drops hints, `--no-input`/`CI`/non-TTY never prompt.
+{% if profiles %}
+- Secrets live only in 0600 profile files or env (`{{ env_prefix }}_TOKEN`) — never in flags, logs, or code.
+  Precedence: `{{ env_prefix }}_PROFILE` env > ephemeral `{{ env_prefix }}_URL`/`{{ env_prefix }}_TOKEN` > stored default profile.
+{% else %}
+- Secrets live only in env (`{{ env_prefix }}_TOKEN`) — never in flags, logs, or code.
+  Config precedence: ephemeral `{{ env_prefix }}_URL`/`{{ env_prefix }}_TOKEN` env vars.
+{% endif %}
+- `NO_COLOR`, `TERM=dumb`, and `--no-color` suppress all styling.
+
+## Wiring your API
+
+Replace the `DEMO_ROWS` stub in `cli.list_cmd` with
+`Client(resolve_profile()).request("GET", f"/{resource}")` — retry, Bearer auth, socks-proxy
+normalization, and network exit code 3 are already handled by `client.py`.

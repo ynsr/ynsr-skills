@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# check.sh — self-check for this single-file CLI (offline; no venv, no installs).
+# 1) compiles + runs via uv (PEP 723 inline deps, cached); 2) spins a throwaway stub API;
+# 3) runs the universal contract gate (scripts/verify-cli) against it.
+set -euo pipefail
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+command -v uv >/dev/null || { echo "check.sh: uv is required (https://docs.astral.sh/uv/)" >&2; exit 2; }
+command -v jq >/dev/null || { echo "check.sh: jq is required" >&2; exit 2; }
+command -v python3 >/dev/null || { echo "check.sh: python3 is required" >&2; exit 2; }
+
+STUB="$(mktemp -d)"
+API_PID=""
+cleanup() { [ -n "$API_PID" ] && kill "$API_PID" 2>/dev/null; rm -rf "$STUB"; }
+trap cleanup EXIT
+
+# Throwaway stub API: GET /<anything> -> {"items": [...]}. Serves check-only; bound to loopback.
+cat > "$STUB/api.py" <<'PY'
+import json, pathlib, sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+port_file = pathlib.Path(sys.argv[1])
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        body = json.dumps({"items": [{"id": 1, "name": "alpha", "size": 10}]}).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):  # silence request logging
+        pass
+
+server = HTTPServer(("127.0.0.1", 0), Handler)
+port_file.write_text(str(server.server_address[1]))
+server.serve_forever()
+PY
+python3 "$STUB/api.py" "$STUB/port" & API_PID=$!
+for _ in $(seq 50); do [ -s "$STUB/port" ] && break; sleep 0.1; done
+[ -s "$STUB/port" ] || { echo "check.sh: stub API did not start" >&2; exit 1; }
+
+# Secrets via env only (never flags); URL points at the stub.
+export {{ env_prefix }}_TOKEN=check-token
+export {{ env_prefix }}_URL="http://127.0.0.1:$(cat "$STUB/port")"
+
+# Warm uv's script env once so verify-cli's 10s timeouts are not first-run downloads.
+"$DIR/tool.py" --version >/dev/null
+
+"$DIR/scripts/verify-cli" "$DIR/tool.py" "items widgets" "delete widgets 42"

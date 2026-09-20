@@ -1,0 +1,103 @@
+{% if profiles %}
+"""Profile store: 0600 JSON files + config.toml default; env-var precedence (resolve_profile)."""
+{% else %}
+"""Config resolution: env-var precedence (resolve_profile)."""
+{% endif %}
+
+import os
+import re
+{% if profiles %}
+import tomllib
+{% endif %}
+from pathlib import Path
+
+import pydantic
+from platformdirs import user_config_dir
+
+
+class Profile(pydantic.BaseModel):
+    """Connection profile: url + token (secret) + client knobs."""
+
+    name: str
+    url: str
+    token: str = ""
+    timeout: float = 30.0
+    retries: int = 3
+    retry_delay: float = 1.0
+    verify_tls: bool = True
+
+    @pydantic.field_validator("name")
+    @classmethod
+    def _safe_name(cls, v: str) -> str:
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", v):
+            raise ValueError("use letters, digits, - or _")
+        return v
+
+    @pydantic.field_validator("url")
+    @classmethod
+    def _http_url(cls, v: str) -> str:
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("url must start with http:// or https://")
+        return v
+
+
+def config_dir() -> Path:
+    """Root config dir; override with {{ env_prefix }}_CONFIG_DIR (tests/sandboxes)."""
+    return Path(os.environ.get("{{ env_prefix }}_CONFIG_DIR") or user_config_dir("{{ name }}"))
+
+
+{% if profiles %}
+def profile_path(name: str) -> Path:
+    return config_dir() / "profiles" / f"{name}.json"
+
+
+def load_profile(name: str) -> Profile | None:
+    path = profile_path(name)
+    return Profile.model_validate_json(path.read_text()) if path.is_file() else None
+
+
+def save_profile(profile: Profile) -> Path:
+    directory = config_dir() / "profiles"
+    directory.mkdir(parents=True, exist_ok=True)
+    path = profile_path(profile.name)
+    path.write_text(profile.model_dump_json())
+    path.chmod(0o600)  # token at rest
+    return path
+
+
+def default_profile_name() -> str:
+    try:
+        return str(tomllib.loads((config_dir() / "config.toml").read_text()).get("default_profile", ""))
+    except (FileNotFoundError, tomllib.TOMLDecodeError):
+        return ""
+
+
+def set_default_profile(name: str) -> None:
+    toml = config_dir() / "config.toml"
+    toml.parent.mkdir(parents=True, exist_ok=True)
+    toml.write_text(f'default_profile = "{name}"\n')
+
+
+def list_profiles() -> list[Profile]:
+    directory = config_dir() / "profiles"
+    return [load_profile(p.stem) for p in sorted(directory.glob("*.json"))] if directory.is_dir() else []
+{% endif %}
+
+
+def resolve_profile(flag: str | None = None) -> Profile | None:
+{% if profiles %}
+    """flag > {{ env_prefix }}_PROFILE > ephemeral {{ env_prefix }}_URL/{{ env_prefix }}_TOKEN > stored default (None = unconfigured)."""
+    name = flag or os.environ.get("{{ env_prefix }}_PROFILE") or ""
+    if name:
+        return load_profile(name)
+{% else %}
+    """ephemeral {{ env_prefix }}_URL/{{ env_prefix }}_TOKEN (None = unconfigured)."""
+{% endif %}
+    if os.environ.get("{{ env_prefix }}_URL"):
+        return Profile(name="env", url=os.environ["{{ env_prefix }}_URL"], token=os.environ.get("{{ env_prefix }}_TOKEN", ""))
+{% if profiles %}
+    name = default_profile_name()
+    return load_profile(name) if name else None
+{% else %}
+    return None
+{% endif %}

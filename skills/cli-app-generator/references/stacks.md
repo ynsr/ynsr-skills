@@ -11,7 +11,7 @@ Libraries verified per `DECISIONS.md` rows A–F (release ≤12 months, permissi
 | HTTP | httpx (+`socks` extra) | one client factory; normalize `socks://`→`socks5://` there |
 | Retry | own helper (tenacity/stamina acceptable) | 3 attempts + exponential backoff |
 | Config | platformdirs + tomllib | precedence flag > env > profile > default |
-| Picker | questionary 2.1.1 + wrapper | see `install-and-completion.md` |
+| Picker | questionary 2.1.1 + wrapper | stderr render, non-TTY → usage error, Ctrl-C → 130; see DECISIONS.md row A |
 | Lint/tests | ruff, pytest | mock-transport tests run offline |
 
 ## Bash (bashly, DECISIONS row D)

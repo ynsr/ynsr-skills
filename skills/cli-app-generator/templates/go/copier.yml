@@ -1,0 +1,46 @@
+# copier template config — Go tier (DECISIONS rows E/F scaffolder).
+# Custom Jinja delimiters: Go composite literals contain {{ }} (e.g. []item{{...}});
+# <$ $> / <% %> / <# #> never appear in Go, go.mod, or the scripts.
+_min_copier_version: "9.0.0"
+
+_envops:
+  trim_blocks: true
+  lstrip_blocks: true
+  variable_start_string: "<$"
+  variable_end_string: "$>"
+  block_start_string: "<%"
+  block_end_string: "%>"
+  comment_start_string: "<#"
+  comment_end_string: "#>"
+
+# NOTE: _exclude REPLACES copier's default exclude list — copier.yml must be re-listed.
+_exclude:
+  - copier.yml
+  - "~*"
+  - "*.py[co]"
+  - __pycache__
+  - .git
+  - .DS_Store
+  - .svn
+
+name:
+  type: str
+  default: sample
+  help: tool name — lowercase letters/digits/-/_; it is the Go module, binary, and unit name
+audience:
+  type: str
+  choices: [human, agent]
+  default: human
+  help: primary audience (agent → csv default --output; recorded in AGENTS.md)
+profiles:
+  type: bool
+  default: false
+  help: include profile subcommands + 0600 store (spec §2.4 add-on)
+wizard:
+  type: bool
+  default: false
+  help: include the huh picker for interactive profile selection (needs --profiles)
+service:
+  type: bool
+  default: false
+  help: include the systemd user-unit service subcommands (Go tier only, spec §2.4)

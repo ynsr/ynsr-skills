@@ -1,0 +1,34 @@
+# copier template config — bash tier (DECISIONS rows D/F scaffolder).
+# Custom Jinja delimiters: bash content contains ${...}, ${#...}, [[ ... ]] and $'...'
+# sequences that collide with default {{ }} / {% %} / {# #}; <$ $> / <% %> / <# #> do not.
+_min_copier_version: "9.0.0"
+
+_envops:
+  trim_blocks: true
+  lstrip_blocks: true
+  variable_start_string: "<$"
+  variable_end_string: "$>"
+  block_start_string: "<%"
+  block_end_string: "%>"
+  comment_start_string: "<#"
+  comment_end_string: "#>"
+
+# NOTE: _exclude REPLACES copier's default exclude list — copier.yml must be re-listed.
+_exclude:
+  - copier.yml
+  - "~*"
+  - "*.py[co]"
+  - __pycache__
+  - .git
+  - .DS_Store
+  - .svn
+
+name:
+  type: str
+  default: sample
+  help: tool name — lowercase letters/digits/-/_; it is the generated script and symlink name
+audience:
+  type: str
+  choices: [human, agent]
+  default: human
+  help: primary audience (agent → csv default --output; recorded in the --help epilog)

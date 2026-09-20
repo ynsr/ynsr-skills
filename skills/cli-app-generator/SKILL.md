@@ -33,7 +33,7 @@ Before writing code, ask (in one batch) only what's missing:
 Scaffold every tier — don't hand-roll:
 
 ```bash
-scripts/scaffold.sh --tier <bash|single-file|project|go> --audience <agent|human> --name <tool-name> [--profiles] [--wizard] [--service]
+scripts/scaffold.sh --tier <python-project|python-single-file|bash|go> --audience <agent|human> --name <tool-name> [--profiles] [--wizard] [--service] [--dest DIR]
 ```
 
 Add-ons are tier-scoped: profiles+wizard → python-project and Go; service → Go only; bash/single-file get env vars only. Library versions, licenses, and rejected alternatives: `references/stacks.md`; spike evidence: `DECISIONS.md`.
