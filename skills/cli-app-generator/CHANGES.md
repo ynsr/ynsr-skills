@@ -55,3 +55,4 @@ One line per removal/replacement during the v2 redesign: `- <what> → <replacem
 - templates/go huh/v2 v2.0.3 (new dep, wizard builds) → go.mod.jinja direct require block : profiles picker (spike E wrapper recipe: WithOutput(stderr), non-TTY guard, NO_COLOR→ThemeBase(true), abort→130) (Task 13)
 - references/stacks.md picker row → points at DECISIONS.md row A : install-and-completion.md never carried picker content (interim debt) (Task 13)
 - specs/validation-results.md (new) → phase 5 four-sample validation : Task 14 — post-fix 13ff9d7 scaffolder, verify-cli green ×4
+- specs/validation-results.md interaction counts → corrected to honest recount : review round — totals now 6/9/10/10, breakdown table self-consistent with flow detail
