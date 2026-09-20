@@ -75,7 +75,7 @@ Deliver working files (`chmod +x` scripts) and run `verify-cli <tool> [probe-rea
 
 ## References
 
-- `references/stacks.md` — per-tier libraries, audience add-on matrix, LOC budgets
+- `references/stacks.md` — per-tier libraries, audience add-on matrix
 - `references/install-and-completion.md` — install/uninstall, doctor contract, cli-hub, completion file-drop + Typer workaround
 - `references/bash-testing.md` — bats + e2e pattern
 - `references/systemd.md` — service add-on (Go tier)

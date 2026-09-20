@@ -39,6 +39,6 @@ Generate with [bashly](https://bashly.dannyb.co/) from YAML: standalone single-f
 
 Agent audience additionally enables: `--fields`, `--limit`, `schema`/`commands` introspection subcommand, JSON error envelope. Human audience: pretty tables by default, pager for long output, did-you-mean hints.
 
-## LOC budgets (non-test, spec §4.3)
+## Template size guidance
 
-python-project ≤380 · go ≤185 · single-file ≤175 · bash ≤145 · total ≤1000. `scripts/verify-cli` counted separately. Bash escalation ceiling: a tool exceeding ~300 LOC or needing real data structures → escalate to Python.
+Bash escalation ceiling: a tool exceeding ~300 LOC or needing real data structures → escalate to Python.
