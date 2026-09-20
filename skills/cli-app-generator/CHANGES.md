@@ -56,3 +56,4 @@ One line per removal/replacement during the v2 redesign: `- <what> → <replacem
 - references/stacks.md picker row → points at DECISIONS.md row A : install-and-completion.md never carried picker content (interim debt) (Task 13)
 - specs/validation-results.md (new) → phase 5 four-sample validation : Task 14 — post-fix 13ff9d7 scaffolder, verify-cli green ×4
 - specs/validation-results.md interaction counts → corrected to honest recount : review round — totals now 6/9/10/10, breakdown table self-consistent with flow detail
+- specs/2026-09-19-redesign-report.md (new) → Task 15 deliverable : before/after metrics with measurement commands, spike A–F summary, migration notes (spec §9), open questions, Global-Constraint self-review
