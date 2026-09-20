@@ -22,6 +22,11 @@ name:
   type: str
   default: mytool
   help: tool name — lowercase letters/digits/underscore; it is the symlink name and env-var prefix
+env_prefix:
+  type: str
+  default: "{{ name | upper | replace('-', '_') }}"
+  help: environment-variable prefix for secrets/URL (derived from the name; secrets come from env only)
+
 audience:
   type: str
   choices: [human, agent]

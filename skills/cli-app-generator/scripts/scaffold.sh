@@ -45,8 +45,12 @@ esac
 case "$AUDIENCE" in human|agent) ;; *) echo "scaffold.sh: unknown audience: $AUDIENCE (human|agent)" >&2; exit 2 ;;
 esac
 
-# Name validation: lowercase identifier-ish everywhere; python tiers are also module names,
-# so they additionally reject dashes (entry-point name = package name there).
+# Name validation: must start with a lowercase letter; lowercase identifier-ish everywhere.
+# Python tiers are also module names, so they additionally reject dashes (entry-point = package).
+case "$NAME" in
+    [a-z]*) ;;
+    *) echo "scaffold.sh: name must match [a-z][a-z0-9_-]* (leading letter required) — got: $NAME" >&2; exit 2 ;;
+esac
 case "$NAME" in
     *[!a-z0-9_-]* | "" ) echo "scaffold.sh: name must match [a-z][a-z0-9_-]* — got: $NAME" >&2; exit 2 ;;
 esac
@@ -57,11 +61,15 @@ case "$NAME" in
         esac ;;
 esac
 
-case "$TIER:$WIZARD$SERVICE" in
-    *:falsefalse) ;;
-    python-project:*|go:*) if $WIZARD && ! $PROFILES; then echo "scaffold.sh: --wizard requires --profiles" >&2; exit 2; fi ;;
-    *:true*) echo "scaffold.sh: --wizard/--service need --profiles; add-ons apply to python-project and go tiers only" >&2; exit 2 ;;
+case "$TIER" in
+    python-project|go) ;;
+    *) if $PROFILES || $WIZARD; then
+           echo "scaffold.sh: --profiles/--wizard apply to python-project and go tiers only (spec §2.4)" >&2; exit 2
+       fi ;;
 esac
+if $WIZARD && ! $PROFILES; then
+    echo "scaffold.sh: --wizard requires --profiles" >&2; exit 2
+fi
 if $SERVICE && [ "$TIER" != "go" ]; then
     echo "scaffold.sh: --service is a go-tier-only add-on (spec §2.4)" >&2; exit 2
 fi

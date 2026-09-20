@@ -27,6 +27,11 @@ name:
   type: str
   default: sample
   help: tool name — lowercase letters/digits/-/_; it is the Go module, binary, and unit name
+env_prefix:
+  type: str
+  default: "<$ name | upper | replace('-', '_') $>"
+  help: environment-variable prefix for secrets/URL (derived from the name; secrets come from env only)
+
 audience:
   type: str
   choices: [human, agent]

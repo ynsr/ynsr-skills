@@ -8,7 +8,7 @@ Single static binary CLI skeleton: wire real commands onto `main.go`'s shape. Ru
     <$ name $> delete f.txt --dry-run      # plan → stdout; add --yes to execute (refuses = exit 2; never prompts)
 <% if profiles %>
     <$ name $> profile create https://api.example.com/v1
-                                       # 0600 JSON store (token from {{ env_prefix }}_TOKEN env); list honors --output
+                                       # 0600 JSON store (token from <$ env_prefix $>_TOKEN env); list honors --output
     <$ name $> list                     # no URL arg → uses the default profile (URL + Bearer token)
 <% endif %>
 <% if service %>

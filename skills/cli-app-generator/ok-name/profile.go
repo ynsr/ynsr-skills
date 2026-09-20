@@ -1,7 +1,7 @@
 // profile.go — optional profiles add-on (spec §2.4; scaffolded with --profiles): 0600 JSON
 // store under os.UserConfigDir()/<tool>/profiles. Secrets come from the environment only —
 // never flags, never stdout; the store holds the URL and a token captured at create time
-// from <$ env_prefix $>_TOKEN if exported, else an empty token.
+// from OK_NAME_TOKEN if exported, else an empty token.
 
 package main
 
@@ -19,10 +19,6 @@ import (
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
-<% if wizard %>
-
-	"charm.land/huh/v2"
-<% endif %>
 )
 
 type profile struct {
@@ -39,7 +35,7 @@ func profileDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(base, "<$ name $>", "profiles"), nil
+	return filepath.Join(base, "ok-name", "profiles"), nil
 }
 
 func profilePath(name string) (string, error) {
@@ -143,45 +139,6 @@ func profileEmit(ps []profile, w io.Writer) error {
 	return nil
 }
 
-<% if wizard %>
-// interactive reports whether prompt rendering is possible (stdin AND stderr both
-// terminals). A /dev/null stdin is not a terminal, so pickers never block scripts.
-func interactive() bool {
-	for _, f := range []*os.File{os.Stdin, os.Stderr} {
-		fi, err := f.Stat()
-		if err != nil || fi.Mode()&os.ModeCharDevice == 0 {
-			return false
-		}
-	}
-	return true
-}
-
-// pickProfile shows the huh select on stderr (non-TTY → empty string, never blocking).
-func pickProfile(title string) string {
-	names := listProfiles()
-	if !interactive() || len(names) == 0 {
-		return ""
-	}
-	opts := make([]huh.Option[string], 0, len(names))
-	for _, p := range names {
-		opts = append(opts, huh.NewOption(p.Name, p.Name))
-	}
-	sel := ""
-	form := huh.NewForm(huh.NewGroup(
-		huh.NewSelect[string]().Title(title).Options(opts...).Value(&sel),
-	)).WithOutput(os.Stderr).WithShowHelp(false)
-	if os.Getenv("NO_COLOR") != "" {
-		form = form.WithTheme(huh.ThemeFunc(func(bool) *huh.Styles { return huh.ThemeBase(true) })) // NO_COLOR: plain theme (spike E recipe)
-	}
-	if err := form.Run(); err != nil {
-		if errors.Is(err, huh.ErrUserAborted) {
-			os.Exit(130) // Ctrl-C: aborted by user
-		}
-		return "" // renderer failure → degrade to non-interactive
-	}
-	return sel
-}
-<% endif %>
 
 func profileCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "profile", Short: "Manage connection profiles (0600 store, secrets via env)"}
@@ -217,7 +174,7 @@ func createProfile(cp *cobra.Command, args []string) error {
 		return cerr{2, fmt.Sprintf("invalid --url %q", raw), "want http(s)://host[:port]/..."}
 	}
 	def, _ := cp.Flags().GetBool("default")
-	p := profile{Name: name, URL: raw, Token: os.Getenv("<$ env_prefix $>_TOKEN"), Default: def}
+	p := profile{Name: name, URL: raw, Token: os.Getenv("OK_NAME_TOKEN"), Default: def}
 	if err := saveProfile(p); err != nil {
 		return cerr{1, err.Error(), "check the profile store permissions"}
 	}
@@ -233,10 +190,6 @@ func removeProfile(_ *cobra.Command, args []string) error {
 	name := ""
 	if len(args) == 1 {
 		name = args[0]
-<% if wizard %>
-	} else if n := pickProfile("Remove which profile?"); n != "" {
-		name = n
-<% endif %>
 	} else {
 		return cerr{2, "profile remove requires a NAME", "profile remove <name> [--yes]"}
 	}

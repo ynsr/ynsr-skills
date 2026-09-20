@@ -1,4 +1,4 @@
-// main.go — <$ name $>: cobra+fang skeleton. Replace the <$ name $> surface with real commands.
+// main.go — ok-name: cobra+fang skeleton. Replace the ok-name surface with real commands.
 // Contract: stdout carries data only; errors surface as {"error":{code,message,hint}} on stderr.
 package main
 
@@ -126,20 +126,18 @@ func fetchCmdItems(args []string) ([]item, error) {
 	if len(args) == 1 {
 		return fetchItems(args[0], "")
 	}
-<% if profiles %>
 	if p, err := defaultProfile(); err == nil && p.URL != "" {
 		return fetchItems(p.URL, p.Token)
 	}
-<% endif %>
 	return demoItems, nil
 }
 
 func main() {
-	root := &cobra.Command{Use: "<$ name $>", Short: "<$ name $> CLI (Go skeleton)",
-		Long: `<$ name $> CLI skeleton for the Go tier; wire real commands onto this shape.
+	root := &cobra.Command{Use: "ok-name", Short: "ok-name CLI (Go skeleton)",
+		Long: `ok-name CLI skeleton for the Go tier; wire real commands onto this shape.
 Exit codes: 0 success, 1 error, 2 usage, 3 network, 4 partial. Stdout carries data only.`}
 	pf := root.PersistentFlags()
-	pf.StringVarP(&output, "output", "o", "<$ 'csv' if audience == 'agent' else 'table' $>", "output format (table|json|csv|tsv)") // audience default
+	pf.StringVarP(&output, "output", "o", "csv", "output format (table|json|csv|tsv)") // audience default
 	pf.BoolVar(&asJSON, "json", false, "shorthand for --output json")
 	pf.Bool("no-color", false, "disable ANSI output") // output is plain anyway; contract parity
 	pf.BoolVarP(&quiet, "quiet", "q", false, "suppress non-essential stderr output")
