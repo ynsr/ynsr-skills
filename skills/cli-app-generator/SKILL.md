@@ -63,7 +63,7 @@ User-scoped systemd unit + linger + `<tool> service install|uninstall|start|stop
 
 ## Step 6: Testing
 
-Python/Go: scaffolded suites (pytest / table-driven `go test`) — ≥75% coverage on core logic, fast real e2e beats inflated unit coverage. Bash: `bats` + inline e2e — pattern: `references/bash-testing.md`. Every skeleton's `check` target = lint + tests + `scripts/verify-cli`.
+Python/Go: scaffolded suites (pytest / table-driven `go test`) — ≥75% coverage on core logic, fast real e2e beats inflated unit coverage. Bash: `bats` + inline e2e — pattern: `references/bash-testing.md`. Every skeleton's `check` target = lint + tests + the copied `scripts/verify-cli`.
 
 ## Step 7: README, AGENTS, version control
 
@@ -71,7 +71,7 @@ Scaffolded README (one-liner, Install, Usage with real commands, Caveats) and AG
 
 ## Output
 
-Deliver working files (`chmod +x` scripts) and run `verify-cli <tool> [probe-read] [probe-destructive]` — all checks green before handover. Also exercise `--help` and one real invocation; if install scripts or service subcommands exist, run install → `status` → uninstall. Commit, run gitleaks before the first push.
+Deliver working files (`chmod +x` scripts) and run `templates/verify-cli <tool> [probe-read] [probe-destructive]` — all checks green before handover. Also exercise `--help` and one real invocation; if install scripts or service subcommands exist, run install → `status` → uninstall. Commit, run gitleaks before the first push.
 
 ## References
 
