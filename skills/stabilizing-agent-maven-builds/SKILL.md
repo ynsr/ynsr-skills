@@ -41,4 +41,5 @@ Core principle: a frozen desktop is host memory pressure, not a test failure. St
 | Reading exit 137 as OOM proof | Check `OOMKilled` flag |
 | Swap without a killer | Pair zram/swap with earlyoom or oomd |
 | `forkCount=1` as a fix | Already the default; timeouts and heap caps matter |
+| Hard-capping CRDB at 2G | Set `--cache`/`--max-sql-memory` explicitly, cap ~3G |
 | Freeze recurs with no evidence | Capture `journalctl -b -1 -k \| grep -iE 'oom\|killed'` + `earlyoom -v` — with earlyoom watching, the trail is solid |
