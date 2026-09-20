@@ -1,4 +1,5 @@
 ---
+author: superpowers
 name: requesting-code-review
 description: Use when completing tasks, implementing major features, or before merging to verify work meets requirements
 ---
@@ -25,7 +26,7 @@ Dispatch a code reviewer subagent to catch issues before they cascade. The revie
 
 **1. Get git SHAs:**
 ```bash
-BASE_SHA=$(git rev-parse HEAD~1)  # or origin/main
+BASE_SHA=$(git rev-parse HEAD~1)  # or: git merge-base origin/main HEAD
 HEAD_SHA=$(git rev-parse HEAD)
 ```
 

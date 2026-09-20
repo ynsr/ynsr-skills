@@ -16,3 +16,4 @@ skills/cli-app-generator/templates/**/uv.lock
 .idea/
 *.swp
 .DS_Store
+.worktrees
