@@ -1,6 +1,6 @@
 ---
 name: mattermost-cli
-description: Mattermost messaging CLI tool
+description: Mattermost messaging and chatting CLI tool
 ---
 
 # Mattermost CLI (`mm`)

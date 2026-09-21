@@ -1,6 +1,6 @@
 ---
 name: jira-cli
-description: Jira issue/task CLI tool
+description: Jira issue/task management CLI tool
 ---
 
 # Jira CLI

@@ -1,11 +1,7 @@
 ---
 name: solr-cli
 description: >
-  Use when a task involves running Solr queries, facets, updates, deletes-by-query,
-  or admin actions through the `solr-cli` tool — or when asked to inspect/fix/review
-  Solr integration for tools built on solr-cli. Covers profile resolution, safe
-  mutate practices, and wire-format guarantees. For Jibit prd specifics use the
-  projectx-solr skill alongside this one.
+  Use for Solr queries, facets, updates, deletes-by-query, admin actions, or inspecting/fixing Solr integrations using `solr-cli`
 ---
 
 # solr-cli

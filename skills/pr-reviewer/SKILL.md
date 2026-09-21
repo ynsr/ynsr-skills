@@ -1,36 +1,8 @@
 ---
 name: pr-reviewer
 description: >
-  Code review skill for GitHub pull requests and GitLab merge requests
-  (including self-hosted instances). Use when asked to "review this PR/MR",
-  "code review", "check this MR", when a GitHub PR or GitLab MR URL is
-  provided, or when asked to review own code and fix findings after approval.
-  Fetches review data using gh/glab CLI, builds a review workspace, analyzes
-  against review criteria, posts inline notes on approval, and fixes code
-  only after explicit fix approval.
-version: 1.1.0
+  Review GitHub pull requests and GitLab merge requests. Trigger on "review PR/MR", "check PR/MR", or GitHub PR/GitLab MR URLs. 
 category: code-review
-triggers:
-  - review pr
-  - review mr
-  - code review
-  - review pull request
-  - review merge request
-  - check pr
-  - check mr
-  - pr review
-  - review my code
-  - github.com/*/pull/*
-  - /-/merge_requests/*
-author: Claude Code
-license: MIT
-tags:
-  - github
-  - gitlab
-  - code-review
-  - pull-request
-  - merge-request
-  - quality-assurance
 ---
 
 # PR/MR Reviewer Skill

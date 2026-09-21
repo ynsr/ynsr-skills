@@ -1,6 +1,6 @@
 ---
-name: metabase
-description: Query/manage Metabase via mbapi CLI (session auth, no API key).
+name: metabase  
+description: Query/manage Metabase via mbapi CLI for BI and data analysis.
 ---
 
 # Metabase CLI (mbapi)
