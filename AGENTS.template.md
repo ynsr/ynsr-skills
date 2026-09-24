@@ -25,7 +25,7 @@ Transform tasks into verifiable goals. For multi-step work, state a brief plan:
 	- Create a plan or todo list.
 	- If possible, execute tasks in parallel
     - Use the main agent for simple tasks and sub-agents for complex ones.
-	- After each task, review its changes before committing (except below branches).
+	- After each task, review its changes before committing.
 	- If Superpowers skills are loaded, prioritize them over this rule.
 - Keep changes idempotent unless impossible by design.
 - Add contextual logs at critical I/O and calculation points.
