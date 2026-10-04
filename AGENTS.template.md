@@ -47,3 +47,7 @@ Transform tasks into verifiable goals. For multi-step work, state a brief plan:
 
 ## 5. Forbidden Directories (never read)
 `target/` (except `generated-sources`), `build/`, `dist/`, `.gradle/`, `**/*.min.js`, `**/*.map`
+
+## CHANGELOG / Append-Only Edits
+- When adding a line to CHANGELOG.md (or any append-only list), use a gap insert (`PUT >N:` after the last line), NEVER a range replace (`PUT N-N:`) — range replace silently drops the existing line.
+- After every such edit, verify with `git diff` that the diff shows only additions (`+`), zero deletions.
