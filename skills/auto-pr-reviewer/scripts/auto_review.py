@@ -21,7 +21,7 @@ import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-PR_SCRIPTS = Path("/home/bs/projects/personal/ynsr-skills/skills/pr-reviewer/scripts")
+PR_SCRIPTS = Path.home() / ".agents/skills/pr-reviewer/scripts"
 sys.path.insert(0, str(PR_SCRIPTS))
 
 from review_platform import parse_review_url  # noqa: E402
@@ -151,15 +151,17 @@ def post_gitlab(meta: dict, body: str, verdict: str, inlines: list,
         run(["glab", "mr", "note", "create", "-R", url, iid, "-m",
              body[:80] + "..."], dry_run)
     else:
-        run(["glab", "mr", "note", "create", "-R", url, iid,
+        run([sys.executable, str(PR_SCRIPTS / "add_mr_note.py"), url, iid,
              "--body-file", str(body_file)], dry_run)
     if verdict == "approve":
         run(["glab", "mr", "approve", "-R", url, iid], dry_run)
     # request-changes on GitLab: inline notes stay resolvable/blocking; no unapprove API.
     posted, skipped = 0, 0
     for c in inlines:
+        # glab: --unique is mutually exclusive with --file (diff comments);
+        # dedupe inline notes by scanning existing discussions instead.
         cmd = [sys.executable, str(PR_SCRIPTS / "add_mr_note.py"), url, iid,
-               "--file", c.get("file", "unknown"), "--unique", "--validate"]
+               "--file", c.get("file", "unknown"), "--validate"]
         if c.get("side") == "LEFT" and not c.get("start_line"):
             cmd += ["--old-line", str(c.get("line", 1))]
         elif c.get("start_line") and c.get("end_line"):

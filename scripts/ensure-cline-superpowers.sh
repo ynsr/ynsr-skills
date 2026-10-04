@@ -60,7 +60,7 @@ EXAMPLES:
 
 CRON:
   Installed as an hourly cronjob (no_agent) that runs:
-    bash /home/bs/projects/personal/ynsr-skills/scripts/ensure-cline-superpowers.sh --fix
+    bash $HOME/projects/personal/ynsr-skills/scripts/ensure-cline-superpowers.sh --fix
   Run manually any time; safe to re-run (idempotent).
 
 EXIT CODES:
