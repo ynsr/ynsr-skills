@@ -238,17 +238,27 @@ def generate_human_review(findings: Dict[str, Any], metadata: Dict[str, Any]) ->
                 review += f"   - Suggestion: {fix}\n"
             review += "\n"
 
-    # Add nits - keep brief
+    # Add nits - same shape as blockers/important so no finding degrades to a bare filename.
+    # Past the cap, list the remainder by title with a pointer: every nit has an
+    # inline thread via synthesize_inline_comments, so nothing is lost.
     nits = findings.get('nits', [])
-    if nits and len(nits) <= 3:  # Only include if few
+    NITS_CAP = 3
+    if nits:
         review += "## Minor Issues\n\n"
-        for i, nit in enumerate(nits, 1):
+        for i, nit in enumerate(nits[:NITS_CAP], 1):
             issue = clean_text(nit.get('issue', 'Issue'))
-            review += f"{i}. {issue}"
+            details = clean_text(nit.get('details', ''))
+            fix = clean_text(nit.get('fix', ''))
+            review += f"{i}. **{issue}**\n"
             if nit.get('file'):
-                review += f" in `{nit['file']}`"
+                review += f"   - File: `{nit['file']}`\n"
+            if details:
+                review += f"   - {details}\n"
+            if fix:
+                review += f"   - Suggestion: {fix}\n"
             review += "\n"
-        review += "\n"
+        if len(nits) > NITS_CAP:
+            review += f"Plus {len(nits) - NITS_CAP} more minor note(s), each posted as an inline comment at its file/line.\n\n"
 
     # Add praise
     praise = findings.get('praise', [])
@@ -305,6 +315,39 @@ def _post_command(comment: Dict[str, Any], metadata: Dict[str, Any]) -> str:
     )
 
 
+SEVERITY_ORDER = ("blockers", "important", "nits")
+
+
+def synthesize_inline_comments(findings: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Return inline comments with one entry per file+line finding.
+
+    Any blocker/important/nit carrying file+line but lacking an explicit
+    inline_comments entry gets a synthesized one built deterministically from
+    its issue/details/fix text, so no finding ends up visible nowhere. Shared
+    by the human path (inline.md) and the auto path (ordered_inline).
+    """
+    inlines = list(findings.get('inline_comments', []))
+    have = {(c.get('file'), c.get('line')) for c in inlines}
+    for sev in SEVERITY_ORDER:
+        for item in findings.get(sev, []):
+            key = (item.get('file'), item.get('line'))
+            if not item.get('file') or item.get('line') is None or key in have:
+                continue
+            parts = [item.get('issue', 'Issue')]
+            if item.get('details'):
+                parts.append(item['details'])
+            if item.get('fix'):
+                parts.append('Suggestion: ' + item['fix'])
+            entry = {'file': item['file'], 'line': item['line'],
+                     'comment': ' - '.join(parts)}
+            for passthrough in ('start_line', 'end_line', 'side', 'code_snippet'):
+                if item.get(passthrough) is not None:
+                    entry[passthrough] = item[passthrough]
+            inlines.append(entry)
+            have.add(key)
+    return inlines
+
+
 def generate_inline_comments_file(findings: Dict[str, Any],
                                   metadata: Dict[str, Any] | None = None) -> str:
     """
@@ -313,10 +356,11 @@ def generate_inline_comments_file(findings: Dict[str, Any],
     Includes code snippets with line number headers.
     """
 
-    inline_comments = findings.get('inline_comments', [])
+    inline_comments = synthesize_inline_comments(findings)
 
     if not inline_comments:
         return "# Inline Comments\n\nNo inline comments proposed.\n"
+
 
     metadata = metadata or findings.get('metadata', {})
     content = "# Proposed Inline Comments\n\n"

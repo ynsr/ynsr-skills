@@ -25,7 +25,7 @@ PR_SCRIPTS = Path.home() / ".agents/skills/pr-reviewer/scripts"
 sys.path.insert(0, str(PR_SCRIPTS))
 
 from review_platform import parse_review_url  # noqa: E402
-from generate_review_files import generate_human_review  # noqa: E402
+from generate_review_files import generate_human_review, synthesize_inline_comments  # noqa: E402
 
 SEVERITY_ORDER = ("blockers", "important", "nits")
 
@@ -59,14 +59,20 @@ def decide_verdict(mode: str, counts: dict) -> str:
 
 
 def ordered_inline(findings: dict, cap: int) -> list:
-    """Return inline_comments ordered blockers-first (by matching file/line)."""
-    wanted = list(findings.get("inline_comments", [])[:cap * 3])
+    """Return inline comments ordered blockers-first (by matching file/line).
+
+    Synthesis lives in generate_review_files.synthesize_inline_comments (single
+    source of truth shared with the human path's inline.md); this only orders
+    and caps. Deterministic synthesis text means idempotent re-runs dedupe
+    exactly like hand-written entries.
+    """
+    inlines = synthesize_inline_comments(findings)[:cap * 3]
     sev_of = {}
     for sev in SEVERITY_ORDER:
         for item in findings.get(sev, []):
             sev_of[(item.get("file"), item.get("line"))] = SEVERITY_ORDER.index(sev)
-    wanted.sort(key=lambda c: sev_of.get((c.get("file"), c.get("line")), 99))
-    return wanted[:cap]
+    inlines.sort(key=lambda c: sev_of.get((c.get("file"), c.get("line")), 99))
+    return inlines[:cap]
 
 
 def fetch_metadata(target, workdir: Path) -> dict:

@@ -12,6 +12,7 @@ from generate_review_files import (  # noqa: E402
     _post_command,
     _post_targets,
     generate_claude_commands,
+    generate_human_review,
     generate_inline_comments_file,
 )
 
@@ -114,3 +115,33 @@ def test_end_to_end_gitlab_generation(tmp_path, findings_file):
     inline = (review_dir / "pr" / "inline.md").read_text()
     assert "add_mr_note.py" in inline
     assert (review_dir / "REVIEW_READY.txt").exists()
+
+
+def test_human_review_nits_include_details_and_fix():
+    findings = {"summary": "s", "metadata": GH_META,
+                "nits": [{"issue": "Whitespace realignment", "file": "a/F.java",
+                          "line": 55, "details": "Adds diff noise, no behavior change",
+                          "fix": "Avoid realignment"}]}
+    body = generate_human_review(findings, GH_META)
+    assert "Adds diff noise" in body
+    assert "Avoid realignment" in body
+
+
+def test_human_review_many_nits_point_to_inline():
+    findings = {"summary": "s", "metadata": GH_META,
+                "nits": [{"issue": f"Nit {i}", "file": "a/F.java", "line": i,
+                          "details": "d"} for i in range(5)]}
+    body = generate_human_review(findings, GH_META)
+    assert "Plus 2 more minor note(s)" in body
+    assert "inline comment" in body
+
+
+def test_inline_file_synthesizes_missing_nit_entry():
+    findings = {"summary": "s", "metadata": GH_META,
+                "blockers": [], "important": [],
+                "nits": [{"issue": "Whitespace", "file": "a/F.java", "line": 55,
+                          "details": "Adds diff noise"}],
+                "inline_comments": []}
+    content = generate_inline_comments_file(findings, GH_META)
+    assert "a/F.java" in content
+    assert "Adds diff noise" in content
