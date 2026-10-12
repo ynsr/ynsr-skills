@@ -96,6 +96,15 @@ def test_dry_run_plan_on_stdout(tmp_path):
     assert not (tmp_path / "cfg").exists() or not any((tmp_path / "cfg" / "profiles").glob("demo*"))
 {% endif %}
 
+{% if wizard %}
+def test_pick_empty_store_refuses_without_prompt(tmp_path):
+    # Empty registry + non-TTY: no menu possible — usage envelope, stdout pure (spike G).
+    proc = run("profile", "remove", tmp_path=tmp_path)
+    assert proc.returncode == 2
+    assert proc.stdout == "" and "Cancelled" not in proc.stdout
+    assert json.loads(proc.stderr)["error"]["code"] == "usage"
+{% endif %}
+
 
 def test_completion_bash_via_real_entry(tmp_path):
     proc = run("completion", "bash", tmp_path=tmp_path)

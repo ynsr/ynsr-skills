@@ -1,0 +1,29 @@
+=== g1 nav+erase ===
+[g1] /home/bs/projects/personal/ynsr-skills/skills/cli-app-generator/specs/spikes/g-picker-parity/probe_template_pick.py
+[g1] child: exit 0
+[g1] STDOUT FILE (14 bytes): b"RESULT:'beta'\n"
+[g1] stdout-pure (no ANSI): True
+[g1] pty tail: b'\n\x1b[0m  Description: beta does the beta thing\x1b[39D\x1b[6A\x1b[28C\x1b[?7h\x1b[0m\x1b[?7l\x1b[28D\x1b[0m\x1b[J\x1b[0m?\x1b[0;1m Pick one: \x1b[0;1mbeta\x1b[16D\x1b[0m\r\r\n\x1b[J\x1b[?7h\x1b[0m\x1b[?2004l\x1b[?12l\x1b[?25h'
+=== g3 q/Esc ===
+[g3] /home/bs/projects/personal/ynsr-skills/skills/cli-app-generator/specs/spikes/g-picker-parity/probe_template_pick.py key=q
+[g3] child: TIMEOUT/HUNG (killed)
+[g3] STDOUT FILE (0 bytes): b''
+[g3] pty tail: b' \xc2\xbb alpha\x1b[0m\r\r\n\x1b[0m   beta\x1b[0m\r\r\n\x1b[0m   gamma\x1b[0m\r\r\n\x1b[0m   alpha\x1b[0m\r\r\n\x1b[0m   omega\x1b[8D\x1b[5A\x1b[28C\x1b[?7h\x1b[0m\x1b[?7l\x1b[?7h\x1b[0m'
+[g3] /home/bs/projects/personal/ynsr-skills/skills/cli-app-generator/specs/spikes/g-picker-parity/probe_template_pick.py key=Esc
+[g3] child: TIMEOUT/HUNG (killed)
+[g3] STDOUT FILE (0 bytes): b''
+[g3] pty tail: b' \xc2\xbb alpha\x1b[0m\r\r\n\x1b[0m   beta\x1b[0m\r\r\n\x1b[0m   gamma\x1b[0m\r\r\n\x1b[0m   alpha\x1b[0m\r\r\n\x1b[0m   omega\x1b[8D\x1b[5A\x1b[28C\x1b[?7h\x1b[0m\x1b[?7l\x1b[?7h\x1b[0m'
+=== g4 dup ===
+[g4] /home/bs/projects/personal/ynsr-skills/skills/cli-app-generator/specs/spikes/g-picker-parity/probe_template_pick.py (duplicate-label select)
+[g4] child: exit 0
+[g4] STDOUT FILE (15 bytes): b"RESULT:'alpha'\n"
+[g4] NOTE: template returns the value ('alpha' either way); workagent returns the index (3 here). Ambiguity unresolvable by caller.
+=== g5 jk ===
+[g5] /home/bs/projects/personal/ynsr-skills/skills/cli-app-generator/specs/spikes/g-picker-parity/probe_template_pick.py (j/k navigation)
+[g5] child: exit 0
+[g5] STDOUT FILE (15 bytes): b"RESULT:'gamma'\n"
+[g5] NOTE: workagent jjj lands on idx2; questionary 'j' may act as vim-bind or type-ahead depending on version.
+[g2] /home/bs/projects/personal/ynsr-skills/skills/cli-app-generator/specs/spikes/g-picker-parity/probe_template_pick.py
+[g2] after SIGINT child: exit 0
+[g2] STDOUT FILE (32 bytes): b'\nCancelled by user\n\nRESULT:None\n'
+[g2] 'Cancelled' leaked to stdout file: True

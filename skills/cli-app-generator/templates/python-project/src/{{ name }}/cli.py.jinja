@@ -60,18 +60,28 @@ def _interactive() -> bool:
     return sys.stdin.isatty() and not os.environ.get("{{ env_prefix }}_NO_INPUT") and not os.environ.get("CI")
 
 
-def _pick(message: str, choices: list[tuple[str, str | None]]) -> str | None:
-    """questionary select rendered on stderr; None on non-TTY / Ctrl-C / EOF (spike A wrapper)."""
-    if not sys.stdin.isatty():
+def _pick(message: str, choices: list[tuple[str, str | None]]) -> int | None:
+    """questionary select rendered on stderr; index or None (spike G wrapper).
+
+    Returns the chosen *index* (workagent pick_index semantics) so duplicate
+    labels stay resolvable; None on empty/non-TTY/Ctrl-C/EOF. questionary
+    prints "Cancelled by user" to stdout on Ctrl-C (spike G g2), so .ask()
+    runs under redirect_stdout to keep the data stream pure (contract §4.1.1).
+    """
+    if not choices or not sys.stdin.isatty():
         return None
+    import contextlib
+    import io
+
     from prompt_toolkit.application import create_app_session
     from prompt_toolkit.output import create_output
     from questionary import Choice, select
 
-    opts = [Choice(k, value=k, description=d) if d else Choice(k, value=k) for k, d in choices]
+    opts = [Choice(k, value=i, description=d) if d else Choice(k, value=i) for i, (k, d) in enumerate(choices)]
     try:
         with create_app_session(output=create_output(stdout=sys.stderr)):
-            return select(message, choices=opts).ask()
+            with contextlib.redirect_stdout(io.StringIO()):
+                return select(message, choices=opts).ask()
     except (KeyboardInterrupt, EOFError):
         return None
 {% endif %}
@@ -192,9 +202,11 @@ def profile_remove(
         if not _interactive():
             raise CliError("profile name required", "usage",
                            "profile remove <name> --dry-run (see profile list)", 2)
-        name = _pick("Remove which profile?", [(p.name, p.url) for p in list_profiles()])
-        if name is None:
+        profiles = list_profiles()
+        idx = _pick("Remove which profile?", [(p.name, p.url) for p in profiles])
+        if idx is None:
             raise CliError("no profile selected", "usage", "name the profile: profile remove <name>", 2)
+        name = profiles[idx].name
 {% else %}
         raise CliError("profile name required", "usage",
                        "profile remove <name> --dry-run (see profile list)", 2)
