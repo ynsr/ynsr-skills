@@ -62,3 +62,8 @@ One line per removal/replacement during the v2 redesign: `- <what> → <replacem
 - templates/verify-cli checks 1–8 → 1–9 (new check 9: pick-gated bare non-TTY refusal is exit-2 envelope, stdout pure) : spike G conformance gate
 - templates/python-project test_surface_subprocess.py.jinja + templates/go main_test.go.jinja → new spike-G regression tests (empty-store refusal / ("", false)) : pick-gate coverage
 - specs/spikes/g-picker-parity/ (new) → probe evidence (g1–g5) + report : spike G pty proof for the wrapper patch
+- templates/python-project __main__.py.jinja (new) → `python -m {{ name }}` entrypoint : ftpctl backport (verify-cli probes hit -m path)
+- templates/python-project Makefile.jinja → mypy gate + seeded CONFIG_DIR + valid "profile remove demo" probe : ftpctl backport (was "profile remove demo" w/o seed, no type gate)
+- templates/python-project pyproject.toml.jinja dev += mypy : supports the Makefile gate
+- templates/python-project install.sh.jinja → real description (was <one-line description> placeholder) : ftpctl install fix
+- templates/python-project config.py.jinja list_profiles filters corrupt Nones; client.py binds Client before retry closure : mypy-clean scaffolds

@@ -51,10 +51,11 @@ class Client:
 
     def request(self, method: str, path: str, **kwargs) -> dict | list:
         """Request with retry + exponential backoff; returns the parsed JSON body."""
-        self._client = self._client or self._build_client()
+        client = self._client or self._build_client()
+        self._client = client
 
         def attempt() -> dict | list:
-            response = self._client.request(method, path, **kwargs)
+            response = client.request(method, path, **kwargs)
             if response.status_code >= 400:
                 raise APIError(f"{path}: HTTP {response.status_code}", status=response.status_code)
             return response.json() if response.content else {}

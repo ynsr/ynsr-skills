@@ -80,7 +80,9 @@ def set_default_profile(name: str) -> None:
 
 def list_profiles() -> list[Profile]:
     directory = config_dir() / "profiles"
-    return [load_profile(p.stem) for p in sorted(directory.glob("*.json"))] if directory.is_dir() else []
+    if not directory.is_dir():
+        return []
+    return [p for p in (load_profile(f.stem) for f in sorted(directory.glob("*.json"))) if p is not None]
 {% endif %}
 
 

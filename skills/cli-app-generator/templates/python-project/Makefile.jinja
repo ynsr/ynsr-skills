@@ -4,5 +4,7 @@ CMD ?= .venv/bin/{{ name }}
 check:
 	uv sync -q
 	uv run ruff check .
+	uv run -- mypy src/
 	uv run -- pytest -q tests
-	./scripts/verify-cli $(CMD) "list widgets"{% if profiles %} "profile remove demo"{% endif %}
+	@tmp=$$(mktemp -d) && \
+		{{ env_prefix }}_CONFIG_DIR=$$tmp ./scripts/verify-cli $(CMD) "list widgets"{% if profiles %} "profile remove demo"{% endif %}; rc=$$?; rm -rf $$tmp; exit $$rc
