@@ -9,6 +9,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+<% if wizard %>
+	"os"
+<% endif %>
 	"strings"
 	"testing"
 	"time"
@@ -144,3 +147,18 @@ func mustGet(t *testing.T, url string) *http.Request {
 func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
+<% if wizard %>
+
+func TestPickProfileEmptyStoreReturnsNotOk(t *testing.T) {
+	// Empty registry: no menu possible — ("", false), never blocks (spike G).
+	dir, err := os.MkdirTemp("", "picktest")
+	if err != nil {
+		t.Skipf("no temp dir: %v", err)
+	}
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	if got, ok := pickProfile("Remove which profile?"); got != "" || ok {
+		t.Fatalf("empty store: got (%q, %v), want (\"\", false)", got, ok)
+	}
+}
+<% endif %>

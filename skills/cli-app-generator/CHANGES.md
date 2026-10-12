@@ -57,3 +57,8 @@ One line per removal/replacement during the v2 redesign: `- <what> → <replacem
 - specs/validation-results.md (new) → phase 5 four-sample validation : Task 14 — post-fix 13ff9d7 scaffolder, verify-cli green ×4
 - specs/validation-results.md interaction counts → corrected to honest recount : review round — totals now 6/9/10/10, breakdown table self-consistent with flow detail
 - specs/2026-09-19-redesign-report.md (new) → Task 15 deliverable : before/after metrics with measurement commands, spike A–F summary, migration notes (spec §9), open questions, Global-Constraint self-review
+- templates/python-project cli.py.jinja _pick value-return → index-return + redirect_stdout + empty guard; profile_remove resolves via index : spike G g2 stdout-leak fix + g4 duplicate-label fix
+- templates/go profile.go.jinja pickProfile string → (string, bool) + URL-in-label; removeProfile maps TTY-abort to exit 130 : spike G testability + abort-layering fix (huh v2.0.3 has no Option.Description)
+- templates/verify-cli checks 1–8 → 1–9 (new check 9: pick-gated bare non-TTY refusal is exit-2 envelope, stdout pure) : spike G conformance gate
+- templates/python-project test_surface_subprocess.py.jinja + templates/go main_test.go.jinja → new spike-G regression tests (empty-store refusal / ("", false)) : pick-gate coverage
+- specs/spikes/g-picker-parity/ (new) → probe evidence (g1–g5) + report : spike G pty proof for the wrapper patch

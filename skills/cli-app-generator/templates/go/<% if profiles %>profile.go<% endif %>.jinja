@@ -156,15 +156,21 @@ func interactive() bool {
 	return true
 }
 
-// pickProfile shows the huh select on stderr (non-TTY → empty string, never blocking).
-func pickProfile(title string) string {
+// pickProfile shows the huh select on stderr (non-TTY → "", false, never blocking).
+// ok=false means aborted or renderer failure; the caller maps abort to exit 130
+// (spike G: no os.Exit inside the helper — stays testable and reusable).
+func pickProfile(title string) (string, bool) {
 	names := listProfiles()
 	if !interactive() || len(names) == 0 {
-		return ""
+		return "", false
 	}
 	opts := make([]huh.Option[string], 0, len(names))
 	for _, p := range names {
-		opts = append(opts, huh.NewOption(p.Name, p.Name))
+		label := p.Name
+		if p.URL != "" {
+			label += " — " + p.URL // huh v2.0.3 Option has no Description field; URL rides in the label
+		}
+		opts = append(opts, huh.NewOption(label, p.Name))
 	}
 	sel := ""
 	form := huh.NewForm(huh.NewGroup(
@@ -174,12 +180,9 @@ func pickProfile(title string) string {
 		form = form.WithTheme(huh.ThemeFunc(func(bool) *huh.Styles { return huh.ThemeBase(true) })) // NO_COLOR: plain theme (spike E recipe)
 	}
 	if err := form.Run(); err != nil {
-		if errors.Is(err, huh.ErrUserAborted) {
-			os.Exit(130) // Ctrl-C: aborted by user
-		}
-		return "" // renderer failure → degrade to non-interactive
+		return "", false // abort or renderer failure → caller decides the exit
 	}
-	return sel
+	return sel, true
 }
 <% endif %>
 
@@ -234,12 +237,19 @@ func removeProfile(_ *cobra.Command, args []string) error {
 	if len(args) == 1 {
 		name = args[0]
 <% if wizard %>
-	} else if n := pickProfile("Remove which profile?"); n != "" {
+	} else if n, ok := pickProfile("Remove which profile?"); ok {
 		name = n
-<% endif %>
+	} else if !interactive() {
+		return cerr{2, "profile remove requires a NAME", "non-TTY never prompts: profile remove <name> [--yes]"}
+	} else {
+		os.Exit(130) // picker aborted or failed on a TTY: aborted by user
+		return nil
+	}
+<% else %>
 	} else {
 		return cerr{2, "profile remove requires a NAME", "profile remove <name> [--yes]"}
 	}
+<% endif %>
 	if _, err := loadProfile(name); err != nil {
 		return cerr{1, err.Error(), "profile list shows stored names"}
 	}

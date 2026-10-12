@@ -162,6 +162,35 @@ check_dry_run() {
   rm -f "$out" "$err"
 }
 
+# 9 picker abort purity (wizard tiers): when the tool has a pick-gated command
+# (profile remove with no NAME), a bare non-TTY invocation must fail fast with
+# the usage envelope (exit 2) — never block, never act, and never leak
+# "Cancelled"-style abort text to stdout.
+check_picker_abort() {
+  local helpout
+  helpout=$(mktemp)
+  if ! NO_COLOR=1 TERM=dumb timeout 10 "$CMD" profile remove --help </dev/null >"$helpout" 2>/dev/null; then
+    skip 9 "no pick-gated profile remove"
+    rm -f "$helpout"
+    return
+  fi
+  rm -f "$helpout"
+  local out err rc=0
+  out=$(mktemp); err=$(mktemp)
+  NO_COLOR=1 TERM=dumb timeout 10 "$CMD" profile remove </dev/null >"$out" 2>"$err" || rc=$?
+  if [ "$rc" -eq 124 ]; then
+    fail 9 "pick-gated command blocked >10s on non-TTY"
+  elif [ "$rc" -ne 2 ]; then
+    fail 9 "pick-gated refusal exited $rc, expected 2 (usage): $(head -c 200 "$err")"
+  elif grep -qi 'cancelled by user' "$out"; then
+    fail 9 "abort text leaked to stdout"
+  elif ! jq -e '.error.code' "$err" >/dev/null 2>&1; then
+    fail 9 "refusal is not an error envelope: $(head -c 200 "$err")"
+  else
+    pass 9
+  fi
+  rm -f "$out" "$err"
+}
 # 8 completion generation succeeds, non-empty (try known generator entrypoints)
 check_completion() {
   local out err sub rc
@@ -186,7 +215,7 @@ main() {
   case "${1:-}" in
     -h|--help)
       say "Usage: verify-cli <path-or-command> [probe-read] [probe-destructive]"
-      say "Exit 0 all pass; 1 failures listed. Checks per spec §4.2 (1–8)."
+      say "Exit 0 all pass; 1 failures listed. Checks per spec §4.2 (1–9)."
       return 0 ;;
     --self-test) ;;
     "") say "Usage: verify-cli <path-or-command> [probe-read] [probe-destructive]" >&2; return 2 ;;
@@ -204,6 +233,7 @@ main() {
   check_error_envelope
   check_dry_run
   check_completion
+  check_picker_abort
   say "verify-cli: $PASS pass, $FAIL fail, $SKIP skip — $CMD"
   [ "$FAIL" -eq 0 ]
 }
