@@ -10,6 +10,7 @@
 - State assumptions and required information before planning or coding.
 - Ask for clarification when requirements are ambiguous, conflicting, incomplete, or omit edge cases.
 - Flag departures from best practices (of domain, design, pattern, or technology) and suggest reasoned alternatives. 
+- If a related Jira/GitHub issue exists, comment with requirements, assumptions, and user decisions before coding; attach/link/upload any spec or planning files.
 
 ## 2. Goal-Driven Execution
 Transform tasks into verifiable goals. For multi-step work, state a brief plan:
